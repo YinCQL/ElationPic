@@ -1,0 +1,183 @@
+# 开发说明
+
+面向想了解实现细节或参与开发的人。快速上手请看仓库根目录的 `README.md`。
+
+---
+
+## 1. 技术选择
+
+| 选择 | 原因 |
+|---|---|
+| PHP 8.0.2 | 目标运行环境；不使用 8.1+ 语法（`readonly`、`enum`、`never` 等） |
+| SQLite | 单管理员、低并发、数据量小。零配置，无数据库端口与账号可被攻击 |
+| 无框架、无 Composer | 直接 FTP 上传即可运行，不需要构建步骤 |
+| 原生前端 | 无构建、无依赖，改完刷新即可生效 |
+| `public/` + `data/` 分离 | `data/` 位于 Web 根之外，HTTP 物理上无法到达 |
+
+---
+
+## 2. 目录结构
+
+```text
+public/          网站根目录（DocumentRoot 指向这里）
+  index.php      首页（公开）
+  setup.php      安装向导
+  admin.php      后台管理
+  upload.php     上传接口
+  assets/        CSS / JS
+  uploads/       图片目录（不可执行脚本）
+
+src/             程序代码（不在网站根内）
+  bootstrap.php  统一引导：常量、配置、错误处理、会话加固
+  helpers.php    转义、日志、路径白名单、格式化、绝对地址
+  db.php         PDO 连接与建表
+  auth.php       认证、登录限速、权限守卫
+  csrf.php       CSRF token
+  settings.php   配置读取、校验、原子写入
+  backup.php     备份包构建与解析
+  images.php     图片数据读写、排序白名单、一致性检查
+  upload.php     上传校验链
+  thumbnails.php GD 缩略图与批量重建
+  views/         页面片段
+
+data/            Web 根之外（不可通过 HTTP 访问）
+  config.php     运行时配置（安装时生成，不在版本库中）
+  database.sqlite
+  logs/ sessions/ tmp/
+```
+
+---
+
+## 3. 数据库
+
+单表 `images`：
+
+```sql
+CREATE TABLE images (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    filename      TEXT    NOT NULL UNIQUE,   -- 服务端生成的随机文件名
+    original_name TEXT    NOT NULL,          -- 用户上传时的原始文件名
+    mime          TEXT    NOT NULL,
+    size          INTEGER NOT NULL,
+    width         INTEGER NOT NULL DEFAULT 0,
+    height        INTEGER NOT NULL DEFAULT 0,
+    sha256        TEXT    NOT NULL DEFAULT '',
+    thumb         INTEGER NOT NULL DEFAULT 0,
+    created_at    TEXT    NOT NULL
+);
+CREATE UNIQUE INDEX idx_images_filename   ON images(filename);
+CREATE INDEX        idx_images_created_at ON images(created_at DESC);
+```
+
+连接设置：
+
+```php
+PDO::ATTR_ERRMODE          => ERRMODE_EXCEPTION
+PDO::ATTR_EMULATE_PREPARES => false   // 真实服务端预处理
+PRAGMA journal_mode = WAL              // 读写不互斥
+PRAGMA synchronous  = NORMAL
+PRAGMA foreign_keys = ON
+```
+
+> WAL 模式下**直接复制 `database.sqlite` 会丢失最近的事务**。
+> 备份必须用 `VACUUM INTO`（`data/backup.php` 已实现）。
+
+---
+
+## 4. 上传校验链
+
+上传是最主要的攻击面，校验分多层，任一层失败即拒绝：
+
+| 层 | 检查 |
+|---|---|
+| 1 | 请求方法、会话、CSRF |
+| 2 | `$_FILES` 错误码与 `is_uploaded_file()` |
+| 3 | 大小上限（配置值，且不超过 PHP 自身限制） |
+| 4 | `finfo_file()` 检测真实 MIME，比对白名单 |
+| 5 | 扩展名由**检测到的 MIME 反推**，不信任客户端文件名 |
+| 6 | `getimagesize()` 确认是可解析的图片 |
+| 7 | 像素总数上限（防解压炸弹） |
+| 8 | 文件名用 `bin2hex(random_bytes(16))` 重新生成 |
+
+**为什么扩展名来自 MIME 而不是文件名**：`evil.php.jpg` 这类双重扩展名，
+如果按客户端文件名取扩展名，就可能得到一个可执行的 `.php`。
+反过来从检测到的 MIME 反推，攻击者无法影响结果。
+
+---
+
+## 5. 输出与安全约定
+
+| 约定 | 说明 |
+|---|---|
+| 所有输出经 `e()` 转义 | 防 XSS |
+| 所有 SQL 用预处理语句 | 无字符串拼接 |
+| `ORDER BY` 用白名单映射 | 排序键无法绑定占位符，故查表得到固定片段 |
+| 文件名经 `safe_filename()` 校验 | 只允许 `[a-f0-9]{32}.扩展名` |
+| 绝对地址经 Host 校验 | 防 Host 注入与开放重定向 |
+| 变更操作要求 POST + CSRF | 防 CSRF |
+
+---
+
+## 6. 前端约定
+
+| 约定 | 原因 |
+|---|---|
+| 事件委托绑定到 `document` | 列表刷新会替换 `innerHTML`，绑在具体元素上的监听器会随之销毁 |
+| 元素每次重新查询，不缓存引用 | 同上：缓存的引用会指向已脱离文档的节点 |
+| 不用 `requestAnimationFrame` 做状态节流 | rAF 在页面不渲染时可能不执行，状态会卡住 |
+| 主题脚本同步置于 `<head>`、在样式表之前 | 异步执行会导致刷新时闪一下浅色 |
+| 不把 `img.src` 设为空字符串 | 浏览器会把它解析为页面地址并发起无效请求 |
+
+---
+
+## 7. 测试
+
+```powershell
+# 环境预检：PHP 版本 / 扩展 / 语法 / 权限 / 敏感文件 / 磁盘 / uploads 可执行性
+powershell -ExecutionPolicy Bypass -File tests\preflight.ps1 -Base http://你的地址
+
+# 功能与安全用例
+powershell -ExecutionPolicy Bypass -File tests\run-tests.ps1 -Base http://你的地址 -Password 你的密码
+
+# 文档完整性检查
+powershell -ExecutionPolicy Bypass -File tests\check-docs.ps1
+
+# uploads 是否可执行 PHP
+powershell -ExecutionPolicy Bypass -File tests\check-uploads-exec.ps1
+```
+
+**造测试素材**（约 22 MB，不入库）：
+
+```bash
+php tests/make-fixtures.php
+```
+
+生成的素材含恶意样本（`shell.jpg`、`evil.php.jpg`、双重扩展名等），
+用于验证上传链能否正确拒绝。小体积的样本已入库，大文件需现生成。
+
+测试用例覆盖：可访问性、登录、权限、安全（注入 / 遍历 / XSS / CSRF）、
+上传、删除、限速、设置、备份、维护工具、主题与排序。
+
+---
+
+## 8. 已知限制
+
+| # | 限制 | 说明 |
+|---|---|---|
+| 1 | 单管理员 | 无多用户与权限分级，拿到密码即全部权限 |
+| 2 | 原图不做处理 | 不剥离 EXIF，照片 GPS 会随直链公开 |
+| 3 | 首页公开 | 需要私密须自行在服务器层加限制 |
+| 4 | 改了缩略图尺寸需手动重建 | 后台「备份 → 维护」提供一键重建 |
+| 5 | 无图片总量上限 | 磁盘水位在后台可见，但不会阻止上传 |
+| 6 | 测试脚本以 Windows PowerShell 为主 | 核心程序跨平台，测试脚本偏 Windows |
+
+---
+
+## 9. 编码约定
+
+| 约定 | 原因 |
+|---|---|
+| PHP 文件用 `declare(strict_types=1)` | 避免隐式类型转换 |
+| 注释说明**为什么**，而非**做了什么** | 代码本身能说明做了什么 |
+| `.ps1` 脚本保持纯 ASCII，或保存为 UTF-8 **带 BOM** | Windows PowerShell 5.1 无 BOM 时按 ANSI 解读，中文会乱码 |
+| 新增 `.ps1` 中的正则注意转义 | 经工具链传递时 `\s+` 可能悄悄变成 `s+`（合法但永不匹配） |
