@@ -1,5 +1,5 @@
 <#
-    Elation Image - documentation integrity check
+    ElationPic - documentation integrity check
 
     Verifies that delivered documents are not structurally damaged, and that
     cross-references point at files that actually exist.

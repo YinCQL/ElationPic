@@ -1,5 +1,5 @@
 <#
-    Elation Image - uploads/ PHP execution check (definitive)
+    ElationPic - uploads/ PHP execution check (definitive)
 
     Answers ONE question: if a .php file ends up under public/uploads/,
     does the web server EXECUTE it, serve it as text, or block it?

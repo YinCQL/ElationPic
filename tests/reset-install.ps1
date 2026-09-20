@@ -1,5 +1,5 @@
 <#
-    Elation Image - reset to a fresh (uninstalled) state
+    ElationPic - reset to a fresh (uninstalled) state
 
     Removes everything the setup wizard created, so you can run the
     installation flow again from scratch.
@@ -40,7 +40,7 @@ function Skip($m) { Write-Host ("  [SKIP] " + $m) -ForegroundColor DarkGray }
 function Warn3($m){ Write-Host ("  [WARN] " + $m) -ForegroundColor DarkYellow }
 
 Write-Host ""
-Write-Host "Elation Image - reset installation" -ForegroundColor White
+Write-Host "ElationPic - reset installation" -ForegroundColor White
 Write-Host ("Project root: " + $root)
 
 

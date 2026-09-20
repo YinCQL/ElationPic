@@ -1,5 +1,5 @@
 <#
-    Elation Image - automated verification (design spec section 45)
+    ElationPic - automated verification (design spec section 45)
 
     Usage (from the project root):
         powershell -ExecutionPolicy Bypass -File tests\run-tests.ps1 -Password <admin password>
@@ -233,7 +233,7 @@ function Resolve-SiteUrl($base, $origin, $href) {
 }
 
 Write-Host ""
-Write-Host "Elation Image verification" -ForegroundColor White
+Write-Host "ElationPic verification" -ForegroundColor White
 Write-Host ("Target: " + $Base + "   Scenario: " + $Scenario)
 
 Write-Head "0. Connectivity"

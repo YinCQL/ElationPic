@@ -1,5 +1,5 @@
 ﻿<#
-    Elation Image - 打包脚本
+    ElationPic - 打包脚本
 
     生成一个可分发的 zip 包，包含运行所需的全部代码与文档。
 
@@ -47,7 +47,7 @@ if ([string]::IsNullOrEmpty($OutDir)) {
 }
 
 Write-Host ""
-Write-Host "=== Elation Image 打包 ===" -ForegroundColor Cyan
+Write-Host "=== ElationPic 打包 ===" -ForegroundColor Cyan
 Write-Host "  项目根目录 : $Root"
 Write-Host "  输出目录   : $OutDir"
 Write-Host ""
@@ -58,7 +58,7 @@ if (-not (Test-Path $Root)) {
 }
 
 $stamp   = Get-Date -Format "yyyyMMdd-HHmmss"
-$pkgName = "elation-image-$stamp"
+$pkgName = "elationpic-$stamp"
 
 if (-not (Test-Path $OutDir)) {
     New-Item -ItemType Directory -Path $OutDir -Force | Out-Null
@@ -223,7 +223,7 @@ if ($IncludeUploads) {
 # 生成包内说明
 # ------------------------------------------------------------------
 $quickStart = @'
-Elation Image — 极简个人图床
+ElationPic — 极简个人图床
 ============================
 
 单管理员、零依赖的 PHP 图片托管程序。

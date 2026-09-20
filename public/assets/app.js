@@ -1,4 +1,4 @@
-/* Elation Image — 少量原生 JS（§33）。无第三方库。 */
+/* ElationPic — 少量原生 JS（§33）。无第三方库。 */
 (function () {
     'use strict';
 

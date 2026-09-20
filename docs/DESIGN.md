@@ -1,4 +1,4 @@
-# Elation Image — 极简个人 PHP 图床 设计文档
+# ElationPic — 极简个人 PHP 图床 设计文档
 
 > 对应《极简图床设计要求.md》§43 阶段 1–3
 > 目标运行时：**PHP 8.0.2 NTS · Nginx 1.25.2 · SQLite 3（PDO）**
@@ -232,13 +232,14 @@ CREATE INDEX        IF NOT EXISTS idx_images_created_at ON images(created_at DES
 ```php
 return [
     'admin_password_hash' => '$2y$10$...',   // 必须，且必须是字符串形态的哈希
-    'site_name'           => 'Elation Image',
-    'site_description'    => '私人图片托管',
+    'site_name'           => 'ElationPic',
+    'site_description'    => 'A lightweight personal image hosting system.',
     'timezone'            => 'Asia/Shanghai',
-    'base_path'           => '',             // 子目录部署时如 '/img/public'，见 §2.1
+    'base_path'           => '',             // 子目录部署时如 '/elationpic/public'，见 §2.1
     'per_page'            => 20,
     'max_file_bytes'      => 10485760,       // 10 MB；改 20 MB 用 20971520
     'thumb_max_edge'      => 480,            // 0 = 关闭缩略图
+    'strip_metadata'      => true,           // 上传时移除 EXIF/GPS（见 §4.1）
     'force_https'         => true,           // ★ 本地 HTTP 调试必须改 false
     'login_max_attempts'  => 5,
     'login_window_secs'   => 900,

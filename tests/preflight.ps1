@@ -1,5 +1,5 @@
 <#
-    Elation Image - environment preflight
+    ElationPic - environment preflight
 
     Run this BEFORE anything else. It separates "environment problems" from
     "code problems" so you do not have to guess which one you are looking at.
@@ -35,7 +35,7 @@ function Head($m) { Write-Host ""; Write-Host ("== " + $m) -ForegroundColor Cyan
 
 $root = Split-Path -Parent $PSScriptRoot
 Write-Host ""
-Write-Host "Elation Image - environment preflight" -ForegroundColor White
+Write-Host "ElationPic - environment preflight" -ForegroundColor White
 Write-Host ("Project root: " + $root)
 
 Head "1. PHP interpreter"

@@ -43,6 +43,7 @@ ElationPic 是一个**单管理员、零依赖**的自托管图床。上传图�
 - 上传后立即给出**可复制的直链**
 - 单张删除、勾选批量删除、全选本页
 - 按原始文件名搜索
+- **上传时自动移除照片隐私信息**（EXIF / GPS / XMP / IPTC），默认开启
 - 站点设置：标题、描述、固定网址、每页数量、上传上限、缩略图尺寸、时区、登录限速
 - 修改管理员密码
 
@@ -146,6 +147,7 @@ location ^~ /uploads/ {
 | `per_page` | 每页显示数量 |
 | `max_file_bytes` | 单文件上传上限 |
 | `thumb_max_edge` | 缩略图最长边（0 表示不生成缩略图） |
+| `strip_metadata` | 上传时移除照片隐私元数据（EXIF / GPS / XMP / IPTC），默认开启 |
 | `timezone` | 时区 |
 | `force_https` | 强制跳转 HTTPS |
 | `login_max_attempts` / `login_window_secs` / `login_lockout_secs` | 登录失败限速 |
@@ -260,8 +262,10 @@ powershell -ExecutionPolicy Bypass -File tools/make-package.ps1
 ## 注意事项
 
 - **首页公开**：默认任何人都能浏览。需要私密请自行在 Web 服务器加限制。
-- **原图不做任何处理**：包括不剥离 EXIF。**照片的 GPS 坐标会随直链一起公开**，
-  发布到公开场合前请自行确认。
+- **隐私元数据默认会被移除**：上传时自动剥离照片中的 EXIF / GPS / XMP / IPTC。
+  手机拍摄的照片普遍带 GPS 坐标，而直链是公开的，等于把拍摄地点一起公开 ——
+  所以这个开关**默认开启**。可在后台「设置」中关闭。
+  实现方式是只删除元数据段、**不重新压缩图片**，画面像素逐字节不变。
 - **单管理员**：没有权限分级，拿到密码即拥有全部权限。
 - **数据库是单文件**：请定期备份。虽然程序启用了 WAL，但直接复制
   `database.sqlite` 可能丢失最近的事务 —— 请使用内置的备份功能。
@@ -276,7 +280,7 @@ powershell -ExecutionPolicy Bypass -File tools/make-package.ps1
 - [ ] 图片标签与筛选
 - [ ] 按上传日期区间筛选
 - [ ] 多档缩略图尺寸
-- [ ] 可选的 EXIF 剥离（当前遵循「原图不做任何处理」的原则）
+- [ ] GIF 的元数据剥离（当前仅支持 JPEG / PNG / WebP）
 
 > 本项目刻意保持轻量。上面这些是否实现取决于实际需要，不保证全部落地。
 
