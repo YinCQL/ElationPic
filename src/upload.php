@@ -165,7 +165,25 @@ function handle_upload(array $file, array $cfg): array
     }
     @chmod($dest, 0664);
 
-    // 落盘后复核：文件确实存在且仍是有效图片
+    // ---- 剥离隐私元数据 ----
+    //
+    // 手机拍摄的图片通常带 GPS 坐标。原图会被公开直链直接访问，
+    // 于是**拍摄地点也一并公开**。这里在上传时去掉这类元数据。
+    //
+    // 关键：不是重编码，而是**只删元数据段**（见 src/metadata.php）。
+    // 压缩像素数据一个字节都不会变，因此仍然满足"原图不做处理"的承诺。
+    if (!empty($cfg['strip_metadata'])) {
+        $meta = meta_strip($dest, $mime);
+        if (!$meta['ok']) {
+            // 剥不掉就留着，绝不因为清理元数据而损坏图片
+            log_event('warning', 'metadata_strip_failed', ['reason' => $meta['reason']]);
+        } elseif ($meta['changed']) {
+            log_event('info', 'metadata_stripped', ['bytes' => $meta['removed']]);
+        }
+    }
+
+    // 落盘后复核：文件确实存在且仍是有效图片。
+    // 元数据剥离之后才做这一步 —— 若剥离过程损坏了文件，这里会拦下来。
     $recheck = @getimagesize($dest);
     if ($recheck === false || (int)$recheck[0] !== $width || (int)$recheck[1] !== $height) {
         @unlink($dest);

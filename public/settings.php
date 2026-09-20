@@ -77,7 +77,7 @@ require APP_ROOT . '/src/views/header.php';
         <label class="field">
             <span>站点标题</span>
             <input type="text" name="site_name" required maxlength="60"
-                   value="<?= e((string)$val('site_name', 'Elation Image')) ?>">
+                   value="<?= e((string)$val('site_name', 'ElationPic')) ?>">
             <small class="hint">显示在浏览器标签页与页面顶部。</small>
         </label>
 
@@ -138,6 +138,19 @@ require APP_ROOT . '/src/views/header.php';
                 <input type="number" name="thumb_max_edge" min="0" max="4000"
                        value="<?= (int)$val('thumb_max_edge', 480) ?>">
                 <small class="hint">只影响之后上传的新图片；0 表示不生成缩略图。</small>
+            </label>
+
+            <label class="field field-check">
+                <input type="checkbox" name="strip_metadata" value="1"
+                       <?= !empty($val('strip_metadata', true)) ? 'checked' : '' ?>>
+                <span>上传时移除照片中的隐私信息（推荐）</span>
+                <small class="hint">
+                    手机拍摄的照片通常带有 <strong>GPS 坐标</strong>、拍摄时间、设备型号。
+                    这些信息会随原图一起公开。开启后会上传时移除它们。
+                    <br>
+                    实现方式是<strong>只删除元数据段，不重新压缩图片</strong> ——
+                    画面像素保持逐字节不变。仅对 JPEG / PNG / WebP 生效，GIF 不受影响。
+                </small>
             </label>
 
             <label class="field">

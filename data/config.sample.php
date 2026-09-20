@@ -24,8 +24,8 @@ return [
     'admin_password_hash' => 'REPLACE_ME',
 
     // 站点展示信息
-    'site_name'           => 'Elation Image',
-    'site_description'    => '私人图片托管',
+    'site_name'           => 'ElationPic',
+    'site_description'    => 'A lightweight personal image hosting system.',
 
     // 展示用时区（数据库恒存 UTC）
     'timezone'            => 'Asia/Shanghai',
@@ -55,6 +55,19 @@ return [
 
     // 缩略图最长边（像素）。设为 0 关闭缩略图（首页回退原图）
     'thumb_max_edge'      => 480,
+
+    // 上传时是否移除照片中的隐私元数据（EXIF / GPS / XMP / IPTC）。
+    //
+    //   ★ true （默认，推荐）-> 移除 GPS 坐标、拍摄时间、设备型号等
+    //   ★ false              -> 原样保留全部元数据
+    //
+    // 为什么默认开启：手机拍摄的照片普遍带 GPS 坐标，而图床的直链是公开的，
+    // 等于把**拍摄地点**一起公开了。这是一个不易察觉、后果却很实在的隐私问题。
+    //
+    // 实现方式：只删除元数据段，**不重新压缩图片**，因此画面像素逐字节不变，
+    // 仍然符合"原图不做处理"的承诺（仅针对 JPEG / PNG / WebP；GIF 不受影响）。
+    // 颜色配置（ICC）会被保留，否则会导致颜色失真。
+    'strip_metadata'      => true,
 
     // 是否要求 HTTPS（令 Session Cookie 带 Secure 标志）。
     //

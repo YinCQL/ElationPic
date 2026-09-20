@@ -29,6 +29,7 @@ require_once APP_ROOT . '/src/csrf.php';
 require_once APP_ROOT . '/src/auth.php';
 require_once APP_ROOT . '/src/images.php';
 require_once APP_ROOT . '/src/thumbnails.php';
+require_once APP_ROOT . '/src/metadata.php';
 require_once APP_ROOT . '/src/upload.php';
 require_once APP_ROOT . '/src/settings.php';
 require_once APP_ROOT . '/src/backup.php';
@@ -73,14 +74,16 @@ if (!is_array($loaded)) {
 
 /** 全局配置存储。helpers/auth/csrf 通过 cfg() 访问。 */
 $GLOBALS['__cfg'] = $loaded + [
-    'site_name'          => 'Elation Image',
-    'site_description'   => '',
+    'site_name'          => 'ElationPic',
+    'site_description'   => 'A lightweight personal image hosting system.',
     'timezone'           => 'UTC',
     'site_url'           => '',
     'base_path'          => '',
     'per_page'           => 20,
     'max_file_bytes'     => 10485760,
     'thumb_max_edge'     => 480,
+    // 默认开启：手机照片普遍带 GPS，公开图床会把拍摄地点一起公开
+    'strip_metadata'     => true,
     'force_https'        => true,
     'login_max_attempts' => 5,
     'login_window_secs'  => 900,

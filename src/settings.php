@@ -31,6 +31,7 @@ function settings_allowed_keys(): array
         'per_page'           => 'int',
         'max_file_bytes'     => 'int',
         'thumb_max_edge'     => 'int',
+        'strip_metadata'     => 'bool',
         'timezone'           => 'string',
         'force_https'        => 'bool',
         'login_max_attempts' => 'int',
@@ -128,8 +129,17 @@ function settings_validate(array $input, array $current): array
     $out    = $current;
     $ranges = settings_ranges();
 
+    // 复选框在未勾选时浏览器**根本不会提交该字段**。
+    // 若沿用"缺失即跳过"的逻辑，用户就永远无法把它关掉。
+    // 因此这些键在缺失时按 false 处理。
+    $checkboxes = ['strip_metadata'];
+
     foreach (settings_allowed_keys() as $key => $type) {
+        $isCheckbox = in_array($key, $checkboxes, true);
         if (!array_key_exists($key, $input)) {
+            if ($isCheckbox) {
+                $out[$key] = false;
+            }
             continue;
         }
         $v = settings_coerce($key, $input[$key]);
@@ -148,7 +158,7 @@ function settings_validate(array $input, array $current): array
     }
 
     if (($out['site_name'] ?? '') === '') {
-        $out['site_name'] = 'Elation Image';
+        $out['site_name'] = 'ElationPic';
     }
 
     return ['ok' => $errors === [], 'cfg' => $out, 'errors' => $errors];

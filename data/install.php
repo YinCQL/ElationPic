@@ -118,7 +118,7 @@ function envPassword(): string
 
 say('');
 say('=========================================');
-say('  Elation Image — 初始化');
+say('  ElationPic — 初始化');
 say('=========================================');
 say('');
 
@@ -231,14 +231,15 @@ while ($hash === '') {
 // 若模板存在则以模板为准（方便用户预先定制），但仍强制覆盖哈希。
 $defaults = [
     'admin_password_hash' => '',
-    'site_name'           => 'Elation Image',
-    'site_description'    => '私人图片托管',
+    'site_name'           => 'ElationPic',
+    'site_description'    => 'A lightweight personal image hosting system.',
     'timezone'            => 'Asia/Shanghai',
     'site_url'            => '',         // 可选：如 'https://img.example.com'
     'base_path'           => '',         // 子目录部署时改为 '/子目录/public'
     'per_page'            => 20,
     'max_file_bytes'      => 10485760,   // 10 MB；改 20 MB 用 20971520
     'thumb_max_edge'      => 480,        // 设为 0 关闭缩略图
+    'strip_metadata'      => true,       // 上传时移除 EXIF/GPS（隐私）
     'force_https'         => true,       // ★ 本地 HTTP 调试请改为 false
     'login_max_attempts'  => 5,
     'login_window_secs'   => 900,

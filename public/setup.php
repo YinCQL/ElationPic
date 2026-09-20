@@ -170,7 +170,7 @@ if ($method === 'POST') {
 
                     $cfg = [
                         'admin_password_hash' => $hash,
-                        'site_name'           => $siteName !== '' ? $siteName : 'Elation Image',
+                        'site_name'           => $siteName !== '' ? $siteName : 'ElationPic',
                         'site_description'    => $siteDesc,
                         'timezone'            => 'Asia/Shanghai',
                         'site_url'            => $siteUrl,   // 留空则按访问主机自动推导
@@ -178,6 +178,8 @@ if ($method === 'POST') {
                         'per_page'            => $perPage,
                         'max_file_bytes'      => 10485760,
                         'thumb_max_edge'      => 480,
+                        // 默认开启：手机照片带 GPS，公开图床会把拍摄地点一起公开
+                        'strip_metadata'      => true,
                         'force_https'         => false,
                         'login_max_attempts'  => 5,
                         'login_window_secs'   => 900,
@@ -261,10 +263,10 @@ $body = $errHtml
 
       . '<h2 class="settings-group">站点</h2>'
       . '<label class="field"><span>站点标题</span>'
-      . '<input type="text" name="site_name" value="Elation Image" maxlength="60" required>'
+      . '<input type="text" name="site_name" value="ElationPic" maxlength="60" required>'
       . '<small class="hint">显示在浏览器标签页与页面顶部。</small></label>'
       . '<label class="field"><span>站点描述（可选）</span>'
-      . '<input type="text" name="site_description" maxlength="160" placeholder="私人图片托管">'
+      . '<input type="text" name="site_description" maxlength="160" placeholder="A lightweight personal image hosting system.">'
       . '<small class="hint">显示在首页标题下方。</small></label>'
       . '<label class="field"><span>站点网址（可选）</span>'
       . '<input type="text" name="site_url" maxlength="200" placeholder="' . s_e($guessOrigin) . '">'
@@ -289,4 +291,4 @@ $body = $errHtml
       . '提示：本页面在安装完成后会自动失效。日后如需修改站点信息或密码，'
       . '登录后在后台「设置」中操作即可，无需重装。</p>';
 
-s_page('安装 Elation Image', $body);
+s_page('安装 ElationPic', $body);
