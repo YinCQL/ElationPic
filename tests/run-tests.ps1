@@ -1022,6 +1022,32 @@ if ($Scenario -in @("all","backup")) {
             $afterOff = Invoke-Req -Url ($Base + "/settings.php") -Session $hs
             $stillOn = ($afterOff.Body -match 'name="public_gallery"[^>]*checked')
             Check "H23b unticking a checkbox still turns it off" (-not $stillOn) ("still checked=" + $stillOn)
+            # H24: the _form_keys list must match the fields actually on the page.
+            #
+            # That list is hand-maintained. Adding a field and forgetting to
+            # declare it would reintroduce the exact bug H23 covers, but only for
+            # the new field -- invisible until someone notices a setting that
+            # will not stick. Comparing the two lists catches it mechanically.
+            foreach ($page in @("settings.php", "settings-advanced.php")) {
+                $pg = Invoke-Req -Url ($Base + "/" + $page) -Session $hs
+                $mDecl = [regex]::Match([string]$pg.Body, 'name="_form_keys"\s+value="([a-z_,]+)"')
+                $declared = @()
+                if ($mDecl.Success) { $declared = $mDecl.Groups[1].Value -split ',' }
+
+                # Every field the form actually posts.
+                #
+                # Only <input>/<select>/<textarea> count -- a bare name="..."
+                # also matches <meta name="viewport"> in the head.
+                $actual = @()
+                foreach ($mF in [regex]::Matches([string]$pg.Body, '<(?:input|select|textarea)\b[^>]*\bname="([a-z_]+)"')) {
+                    $n = $mF.Groups[1].Value
+                    if ($n -ne 'csrf_token' -and $n -ne '_form_keys') { $actual += $n }
+                }
+                $actual = $actual | Sort-Object -Unique
+
+                $undeclared = @($actual | Where-Object { $_ -notin $declared })
+                Check ("H24 " + $page + " declares every field it posts") ($undeclared.Count -eq 0) ("undeclared: " + ($undeclared -join ", "))
+            }
 
             # Restore it, so later assertions see the default state.
             $null = Invoke-Req -Method POST -Url ($Base + "/settings.php") -Body $bodyA -ContentType "application/x-www-form-urlencoded" -Session $hs
