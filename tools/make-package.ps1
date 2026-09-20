@@ -325,19 +325,35 @@ Remove-Item $stage -Recurse -Force -ErrorAction SilentlyContinue
 # ------------------------------------------------------------------
 # 这一步是最后一道防线：包内出现任何不该有的东西，就删除整个包。
 # 宁可没有产物，也不能发布一个泄露密码或用户图片的包。
+#
+# 判定"是不是目录"很重要：CreateFromDirectory 会为**空目录**写出独立的
+# 目录条目（形如 "public/uploads/thumbs/"），它们不含任何内容。
+# 若把目录条目当成文件判断，会把空目录骨架误报成用户图片 ——
+# 这会让打包在正常配置下直接失败。
 $bad = New-Object System.Collections.ArrayList
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $z = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
 foreach ($e in $z.Entries) {
     $n = $e.FullName
 
+    # 目录条目：不含内容，不可能泄露任何东西，直接跳过。
+    #
+    # CreateFromDirectory 会为**空目录**写出独立条目。如何识别它：
+    #   - .NET 在 Windows 上写成 "public\uploads\thumbs\"（反斜杠），
+    #     其他平台用正斜杠 —— 两种都要判。
+    #   - 更可靠的判据是 $e.Name -eq ""：Name 是路径最后一段且不含分隔符，
+    #     目录条目没有最后一段，因此为空。这一点跨平台一致。
+    # 三个条件取或：任一成立即视为目录，不会因平台差异而漏判。
+    $isDir = ($e.Name -eq "") -or $n.EndsWith("/") -or $n.EndsWith("\")
+    if ($isDir) { continue }
+
     if ($e.Name -eq ".gitkeep") {
         [void]$bad.Add($n + "  <- 版本控制占位文件"); continue
     }
     if ($n -eq "data/config.php")          { [void]$bad.Add($n + "  <- 含管理员密码哈希"); continue }
     if ($n -eq "data/database.sqlite")     { [void]$bad.Add($n + "  <- 真实数据"); continue }
-    if ($n -like "data/logs/*" -and $e.Length -gt 0) { [void]$bad.Add($n + "  <- 运行日志"); continue }
-    if ($n -like "data/tmp/*"  -and $e.Length -gt 0) { [void]$bad.Add($n + "  <- 临时文件"); continue }
+    if ($n -like "data/logs/*")            { [void]$bad.Add($n + "  <- 运行日志"); continue }
+    if ($n -like "data/tmp/*")             { [void]$bad.Add($n + "  <- 临时文件"); continue }
     if ($n -like "*before-import*")        { [void]$bad.Add($n + "  <- 导入回滚点"); continue }
     if ($n -like "public/uploads/*" -and -not $IncludeUploads) {
         [void]$bad.Add($n + "  <- 用户图片（未指定 -IncludeUploads）"); continue

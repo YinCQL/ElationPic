@@ -1,4 +1,4 @@
-<#
+﻿<#
     ElationPic - documentation integrity check
 
     Verifies that delivered documents are not structurally damaged, and that
@@ -132,17 +132,31 @@ if (-not (Test-Path $pkg)) {
 } else {
     Ok "packaging script exists"
 
-    $bytes = [System.IO.File]::ReadAllBytes($pkg)
-    $hasBom = ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF)
-    $nonAscii = 0
-    foreach ($b in $bytes) { if ($b -gt 127) { $nonAscii++ } }
-
-    if ($nonAscii -eq 0) {
-        Ok "packaging script is pure ASCII (no BOM needed)"
-    } elseif ($hasBom) {
-        Ok "packaging script has non-ASCII and carries a UTF-8 BOM"
+    # 检查**所有** .ps1 的编码，而不只是打包脚本。
+    #
+    # 为什么这是机械检查而非靠自觉：某些编辑器/工具在保存时会静默丢掉 BOM。
+    # 文件看起来完全正常，但 PowerShell 5.1 会按 ANSI 解读，
+    # 中文变乱码、here-string 提前终止 —— 报出来的是"语法错误"，
+    # 而真正的原因（编码）从报错信息里完全看不出来。
+    # 这个坑实际踩过一次，所以在这里固定住。
+    $psFiles = @(Get-ChildItem -Path $root -Recurse -File -Filter "*.ps1" |
+                 Where-Object { $_.FullName -notlike "*\.git\*" })
+    $bomProblems = @()
+    foreach ($pf in $psFiles) {
+        $fb = [System.IO.File]::ReadAllBytes($pf.FullName)
+        $fHasBom = ($fb.Length -ge 3 -and $fb[0] -eq 0xEF -and $fb[1] -eq 0xBB -and $fb[2] -eq 0xBF)
+        $fNonAscii = 0
+        foreach ($by in $fb) { if ($by -gt 127) { $fNonAscii++ } }
+        # 纯 ASCII 不需要 BOM；含非 ASCII 就必须有 BOM
+        if ($fNonAscii -gt 0 -and -not $fHasBom) {
+            $rel = $pf.FullName.Substring($root.Length + 1)
+            $bomProblems += ($rel + " (non-ASCII without BOM)")
+        }
+    }
+    if ($bomProblems.Count -eq 0) {
+        Ok ("all " + $psFiles.Count + " .ps1 files have a safe encoding")
     } else {
-        Bad "packaging script has non-ASCII but NO BOM - PowerShell 5.1 will mangle it"
+        Bad ("BOM missing: " + ($bomProblems -join ", "))
     }
 
     # The script must refuse to ship secrets. Check the guard is still there.
@@ -151,11 +165,20 @@ if (-not (Test-Path $pkg)) {
     if ($guardsSecret) { Ok "packaging script excludes config and database" }
     else { Bad "packaging script no longer excludes config/database" }
 
-    # And it must check uploads too - an early version leaked user images
-    # because the whole public/ tree was copied.
-    $guardsUploads = ($pkgText -match "isUserImage") -and ($pkgText -match "IncludeUploads")
+    # 必须同时守住用户图片：早期版本正是漏了这一点，
+    # 结果把使用者的图一起打了进去（而当时的校验还报告"通过"）。
+    $guardsUploads = ($pkgText -match "public/uploads/[*]") -and
+                     ($pkgText -match "IncludeUploads") -and
+                     ($pkgText -match "用户图片")
     if ($guardsUploads) { Ok "packaging script guards user images" }
     else { Bad "packaging script no longer guards user images" }
+
+    # 目录条目必须被排除在"用户图片"判定之外。
+    # CreateFromDirectory 会为空目录写独立条目；若不区分，
+    # 正常的空目录骨架会被误报成泄露，导致打包在正确配置下也失败。
+    $handlesDirEntries = ($pkgText -match '\$e\.Name -eq ""')
+    if ($handlesDirEntries) { Ok "packaging script distinguishes directory entries" }
+    else { Bad "packaging script would misreport empty directories as user images" }
 }
 
 Write-Host "================ summary ================" -ForegroundColor White
