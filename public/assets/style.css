@@ -142,7 +142,8 @@ a:hover { color: var(--accent); }
 }
 .panel h1 { margin: 0 0 6px; font-size: 18px; font-weight: 600; }
 .panel h2 { margin: 0; font-size: 16px; font-weight: 600; }
-.panel-narrow { max-width: 400px; margin: 46px auto; }
+/* .panel-narrow 的完整定义见文件后部 —— 那里优先级更高，
+   否则会被 .panel 的 margin 覆盖而失去居中效果。 */
 .panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
 .center { text-align: center; }
 
@@ -798,6 +799,13 @@ h3 { font-size: 17px; }
     box-shadow: var(--shadow);
     padding: 26px 28px;
     margin: 0 0 22px;
+}
+/* 窄面板（登录、安装等单栏页面）。
+   必须写在 .panel 之后：.panel 的 margin: 0 0 22px 会把
+   "margin: ... auto" 里的水平 auto 覆盖掉，导致面板贴到左边而非居中。 */
+.panel.panel-narrow {
+    max-width: 420px;
+    margin: 46px auto;
 }
 .panel h1 { margin: 0 0 8px; font-size: 22px; }
 .panel h2 { margin: 0 0 10px; font-size: 18px; }
