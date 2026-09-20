@@ -101,6 +101,19 @@ require APP_ROOT . '/src/views/header.php';
 
         <h2 class="settings-group">浏览</h2>
 
+        <label class="field field-check">
+            <input type="checkbox" name="public_gallery" value="1"
+                   <?= !empty($val('public_gallery', true)) ? 'checked' : '' ?>>
+            <span>公开首页（任何人都能浏览图片列表）</span>
+            <small class="hint">
+                关闭后访客看不到图片列表，只显示一个「本站未公开」的提示页。
+                <br>
+                <strong>已发出的直链不受影响</strong> —— 图片由 Web 服务器直接返回，
+                不经过本站程序，因此把图片贴到论坛或聊天里仍然能正常打开。
+                你登录后照常可以看到列表。
+            </small>
+        </label>
+
         <label class="field">
             <span>每页显示图片数</span>
             <input type="number" name="per_page" min="1" max="120"

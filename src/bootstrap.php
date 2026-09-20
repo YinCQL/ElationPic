@@ -76,6 +76,9 @@ if (!is_array($loaded)) {
 $GLOBALS['__cfg'] = $loaded + [
     'site_name'          => 'ElationPic',
     'site_description'   => 'A lightweight personal image hosting system.',
+    // 首页是否公开。关闭后访客看不到图片列表，但直链仍然有效
+    // （图片由 Web 服务器直接返回，不经过 PHP，因此不受此开关影响）。
+    'public_gallery'     => true,
     'timezone'           => 'UTC',
     'site_url'           => '',
     'base_path'          => '',

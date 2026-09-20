@@ -8,6 +8,46 @@ declare(strict_types=1);
 
 require __DIR__ . '/../src/bootstrap.php';
 
+// ---- 首页公开开关 ----
+//
+// 关闭后**访客**看不到图片列表，但：
+//   - 直链（/uploads/xxx.jpg）**仍然有效** —— 图片由 Web 服务器直接返回，
+//     根本不经过这个文件，因此不受开关影响。这正是"关闭展示但不影响外链"的关键。
+//   - 已登录的管理员照常浏览，否则自己也看不到自己的图。
+//   - 登录页不受影响，否则无法登录后台去重新打开。
+//
+// 这里刻意**不返回 404**：访客看到明确的"本站不公开"比一个错误页更好，
+// 至少知道站点是活的、只是不对外展示。
+if (empty(cfg()['public_gallery']) && !auth_is_logged_in()) {
+    if (!headers_sent()) {
+        header('Cache-Control: no-store, max-age=0');
+        header('X-Robots-Tag: noindex, nofollow');
+    }
+    $pageTitle   = '未公开';
+    $isAdminPage = false;
+    require APP_ROOT . '/src/views/header.php';
+    ?>
+    <section class="hero">
+        <h1><?= e((string)cfg()['site_name']) ?></h1>
+    </section>
+
+    <div class="panel panel-narrow">
+        <h2>本站未公开</h2>
+        <p class="muted">
+            站点管理员关闭了图片列表的公开访问。
+        </p>
+        <p class="muted">
+            如果你持有某张图片的直链，它<strong>仍然可以正常打开</strong>。
+        </p>
+        <p>
+            <a class="btn" href="<?= e(url('/login.php')) ?>">管理员登录</a>
+        </p>
+    </div>
+    <?php
+    require APP_ROOT . '/src/views/footer.php';
+    exit;
+}
+
 $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
 
 // 排序：只接受白名单里的键，非法值一律退回默认。

@@ -32,6 +32,8 @@ ElationPic 是一个**单管理员、零依赖**的自托管图床。上传图�
 **浏览（公开）**
 
 - 响应式图片墙，适配手机 / 平板 / 桌面
+- **可开关的首页公开**：关闭后访客只看到「本站未公开」提示，
+  但**已发出的直链仍然有效**（图片由 Web 服务器直接返回，不经过程序）
 - 按最新、最早、文件最大/最小、文件名排序
 - 点图查看大图（灯箱），或在新标签页打开原图
 - 浅色 / 深色主题：跟随系统，也可手动切换
@@ -148,6 +150,7 @@ location ^~ /uploads/ {
 | `max_file_bytes` | 单文件上传上限 |
 | `thumb_max_edge` | 缩略图最长边（0 表示不生成缩略图） |
 | `strip_metadata` | 上传时移除照片隐私元数据（EXIF / GPS / XMP / IPTC），默认开启 |
+| `public_gallery` | 首页是否公开。关闭后只影响列表展示，**不影响直链** |
 | `timezone` | 时区 |
 | `force_https` | 强制跳转 HTTPS |
 | `login_max_attempts` / `login_window_secs` / `login_lockout_secs` | 登录失败限速 |

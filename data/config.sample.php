@@ -27,6 +27,18 @@ return [
     'site_name'           => 'ElationPic',
     'site_description'    => 'A lightweight personal image hosting system.',
 
+    // 首页是否公开。
+    //
+    //   true （默认）-> 任何人都能浏览图片列表
+    //   false        -> 访客只看到「本站未公开」提示页
+    //
+    // ★ 关闭后**已发出的直链仍然有效**。图片由 Web 服务器直接返回，
+    //   不经过 PHP，因此这个开关只影响列表展示，不影响外链。
+    //   这适合"图片要贴到论坛，但不想让人翻整个图库"的场景。
+    //
+    // 已登录的管理员不受影响，照常浏览。
+    'public_gallery'      => true,
+
     // 展示用时区（数据库恒存 UTC）
     'timezone'            => 'Asia/Shanghai',
 

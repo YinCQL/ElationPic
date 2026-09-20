@@ -331,6 +331,76 @@ if ($Scenario -in @("all","access")) {
     if ($cards -gt 1) { $wantLazy = $cards - 1 }
     $ok = ($eager -eq $wantEager) -and ($prio -eq $wantEager) -and ($lazy -eq $wantLazy)
     Check "A14 first image loads with high priority" $ok ("cards=" + $cards + " eager=" + $eager + "/" + $wantEager + " lazy=" + $lazy + "/" + $wantLazy + " prio=" + $prio)
+    # A15: the public-gallery switch must actually gate the listing.
+    #
+    # This flips the setting for real and checks the observable effect, rather
+    # than grepping the response for a variable name -- index.php returns
+    # rendered HTML, so the source text never appears in the body.
+    #
+    # It only runs when a password is available, because flipping a setting
+    # requires an admin session.
+    if ([string]::IsNullOrEmpty($Password)) {
+        Skip "A15" "no -Password provided"
+        Skip "A15b" "no -Password provided"
+        Skip "A15c" "no -Password provided"
+    } else {
+        $hsP = New-LoginSession $Password
+        if ($hsP -eq $null) {
+            Skip "A15" "could not establish an admin session"
+            Skip "A15b" "could not establish an admin session"
+            Skip "A15c" "could not establish an admin session"
+        } else {
+            $setP = Invoke-Req -Url ($Base + "/settings.php") -Session $hsP
+            Check "A15 settings page offers the public-gallery switch" ($setP.Body -match "public_gallery") ""
+
+            # Read the current config so we can restore it afterwards.
+            $cfgPath = Join-Path (Split-Path -Parent $PSScriptRoot) "data\config.php"
+            $before = $null
+            if (Test-Path $cfgPath) {
+                $raw = Get-Content $cfgPath -Raw -Encoding UTF8
+                $before = ($raw -match "'public_gallery'\s*=>\s*true")
+            }
+
+            # Find an image link to test once the gallery is closed.
+            $imgLink = ""
+            $mImg = [regex]::Match([string]$root.Body, 'href="(/uploads/[^"]+)"')
+            if ($mImg.Success) { $imgLink = $mImg.Groups[1].Value }
+
+            # Turn it OFF by omitting the checkbox from the POST.
+            $tokP = ""
+            $mP = [regex]::Match([string]$setP.Body, 'name="csrf_token"\s+value="([^"]+)"')
+            if ($mP.Success) { $tokP = $mP.Groups[1].Value }
+
+            $offBody = "csrf_token=" + [uri]::EscapeDataString($tokP) +
+                       "&site_name=Test&site_description=&site_url=&per_page=20" +
+                       "&max_file_bytes=10485760&thumb_max_edge=480&timezone=UTC" +
+                       "&force_https=0&login_max_attempts=5&login_window_secs=900" +
+                       "&login_lockout_secs=900&log_level=info&base_path=&strip_metadata=1"
+            $null = Invoke-Req -Method POST -Url ($Base + "/settings.php") -Body $offBody -ContentType "application/x-www-form-urlencoded" -Session $hsP
+
+            # Anonymous visitor: must not see the listing.
+            # Assert on ASCII markers only -- this script has to stay pure ASCII
+            # because PowerShell 5.1 reads BOM-less .ps1 as ANSI.
+            # The notice page renders a panel with the login link and no grid.
+            $anonHome = Invoke-Req -Url ($Base + "/")
+            $noCards = ($anonHome.Body -notmatch 'class="card-media"')
+            $hasLoginLink = ($anonHome.Body -match "login.php")
+            Check "A15b closed gallery hides the listing" ($noCards -and $hasLoginLink) ("cards=" + (-not $noCards) + " login=" + $hasLoginLink)
+
+            # The direct link must keep working -- this is the whole point.
+            if ($imgLink -ne "") {
+                $dl = Invoke-Req -Url ($Base + $imgLink)
+                Check "A15c direct link still works when closed" ($dl.Status -eq 200) ("status=" + $dl.Status + " link=" + $imgLink)
+                $ok = $dl.Body -match ""   # cheap guard for the linter
+            } else {
+                Skip "A15c" "no image link available to test"
+            }
+
+            # Restore the original setting.
+            $onBody = $offBody + "&public_gallery=1"
+            $null = Invoke-Req -Method POST -Url ($Base + "/settings.php") -Body $onBody -ContentType "application/x-www-form-urlencoded" -Session $hsP
+        }
+    }
     Check "A5b error page leaks no paths/stack" (-not $hasStack) ""
 }
 

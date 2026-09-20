@@ -26,6 +26,7 @@ function settings_allowed_keys(): array
     return [
         'site_name'          => 'string',
         'site_description'   => 'string',
+        'public_gallery'     => 'bool',
         'site_url'           => 'url',
         'base_path'          => 'string',
         'per_page'           => 'int',
@@ -132,7 +133,7 @@ function settings_validate(array $input, array $current): array
     // 复选框在未勾选时浏览器**根本不会提交该字段**。
     // 若沿用"缺失即跳过"的逻辑，用户就永远无法把它关掉。
     // 因此这些键在缺失时按 false 处理。
-    $checkboxes = ['strip_metadata'];
+    $checkboxes = ['strip_metadata', 'public_gallery'];
 
     foreach (settings_allowed_keys() as $key => $type) {
         $isCheckbox = in_array($key, $checkboxes, true);
