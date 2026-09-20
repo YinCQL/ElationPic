@@ -22,7 +22,10 @@
 public/          网站根目录（DocumentRoot 指向这里）
   index.php      首页（公开）
   setup.php      安装向导
-  admin.php      后台管理
+  admin.php      后台管理（图片列表与上传）
+  settings.php   站点设置
+  backup.php     备份与恢复（导出 / 导入）
+  maintenance.php 维护工具（存储、重建缩略图、一致性自检）
   upload.php     上传接口
   assets/        CSS / JS
   uploads/       图片目录（不可执行脚本）
@@ -176,6 +179,8 @@ WebP 还要注意：删除块之后 RIFF 头里记录的**总长度必须同步�
 | 不用 `requestAnimationFrame` 做状态节流 | rAF 在页面不渲染时可能不执行，状态会卡住 |
 | 主题脚本同步置于 `<head>`、在样式表之前 | 异步执行会导致刷新时闪一下浅色 |
 | 不把 `img.src` 设为空字符串 | 浏览器会把它解析为页面地址并发起无效请求 |
+| 后台侧边栏由 `views/sidebar.php` 统一输出 | 新页面只要设置 `$isAdminPage = true` 就自动获得导航与高亮，不需要各页重复写 |
+| 后台页面的 `<main>` 开闭由 header/footer 成对处理 | 带侧边栏时多一层 `.admin-shell`；两处分支条件必须一致，否则标签不闭合 |
 
 ---
 

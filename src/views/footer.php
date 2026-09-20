@@ -1,7 +1,13 @@
 <?php
 declare(strict_types=1);
+// 关闭 <main>。带侧边栏时还多一层 .admin-shell 容器需要收尾，
+// 因此这里必须与 header.php 里的分支保持一致。
+$__hadSidebar = !empty($isAdminPage) && !empty($loggedIn);
 ?>
 </main>
+<?php if ($__hadSidebar): ?>
+</div><!-- /.admin-shell -->
+<?php endif; ?>
 <?php $__fdesc = trim((string)cfg()['site_description']); ?>
 <footer class="site-footer">
     <div class="wrap footer-inner">

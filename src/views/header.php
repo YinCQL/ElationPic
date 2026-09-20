@@ -84,4 +84,19 @@ $__nav = static function (string $file, string $active) use ($__cur): string {
         </nav>
     </div>
 </header>
+
+<?php
+// 后台页面使用「侧边栏 + 内容」的两栏布局。
+//
+// 公开首页不加侧边栏 —— 那里没有可切换的管理入口，加了反而是噪音。
+// 布局本身由 CSS 的 .admin-shell 承担；窄屏下侧边栏会变成顶部横向滚动条，
+// 与现有导航的处理方式一致（见 style.css 的 <=720px 媒体查询）。
+$__hasSidebar = !empty($isAdminPage) && !empty($loggedIn);
+?>
+<?php if ($__hasSidebar): ?>
+<div class="wrap admin-shell">
+    <?php require APP_ROOT . '/src/views/sidebar.php'; ?>
+    <main class="admin-main">
+<?php else: ?>
 <main class="wrap">
+<?php endif; ?>

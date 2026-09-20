@@ -912,10 +912,13 @@ if ($Scenario -in @("all","backup")) {
                 Check "H9c config.php survived the traversal attempt" ($cfgStill.Status -ne 200) ("status=" + $cfgStill.Status)
             }
 
-            # H10: thumbnail rebuild endpoint
-            Check "H10 backup page offers a thumbnail rebuild" ($bkPage.Body -match "btn-rebuild-thumbs") ""
+            # H10: thumbnail rebuild endpoint.
+            # Moved from backup.php to maintenance.php when the page was split --
+            # the backup page now covers only export and import.
+            $mtPage = Invoke-Req -Url ($Base + "/maintenance.php") -Session $hs
+            Check "H10 maintenance page offers a thumbnail rebuild" ($mtPage.Body -match "btn-rebuild-thumbs") ""
             $rtTok = ""
-            $mrt = [regex]::Match([string]$bkPage.Body, 'name="csrf_token"\s+value="([^"]+)"')
+            $mrt = [regex]::Match([string]$mtPage.Body, 'name="csrf_token"\s+value="([^"]+)"')
             if ($mrt.Success) { $rtTok = $mrt.Groups[1].Value }
             if ($rtTok -ne "") {
                 $rtBody = "csrf_token=" + [uri]::EscapeDataString($rtTok) + "&offset=0&limit=2"
@@ -937,18 +940,34 @@ if ($Scenario -in @("all","backup")) {
             $resolvesSystem = ($themeSrc.Body -match "prefers-color-scheme")
             Check "H11b theme script resolves the system preference" $resolvesSystem ""
 
-            # H21: storage summary is shown on the backup page.
+            # H21: storage summary lives on the maintenance page.
             # Disk-full is not just an upload problem: PHP cannot write session
             # files either, so the whole site can start erroring with a message
             # that points somewhere else entirely.
-            $bk2 = Invoke-Req -Url ($Base + "/backup.php") -Session $hs
-            Check "H21 backup page shows a storage summary" ($bk2.Body -match "storage-row") ""
+            #
+            # It moved from backup.php when that page was split; the backup page
+            # now covers only export and import.
+            Check "H21 maintenance page shows a storage summary" ($mtPage.Body -match "storage-row") ""
             # Assert on ASCII class markers only: this script must stay pure ASCII
             # (Windows PowerShell 5.1 misreads non-ASCII .ps1 files).
-            $hasFree = ($bk2.Body -match "storage-value")
+            $hasFree = ($mtPage.Body -match "storage-value")
             Check "H21b storage summary reports values" $hasFree ""
-            $hasBar = ($bk2.Body -match "storage-bar")
+            $hasBar = ($mtPage.Body -match "storage-bar")
             Check "H21c storage summary draws a usage bar" $hasBar ""
+
+            # H22: the sidebar must appear on every admin page and nowhere else.
+            # A missing sidebar on one page would strand the user there.
+            $sbPages = @("admin.php", "settings.php", "backup.php", "maintenance.php", "password.php")
+            $sbMissing = @()
+            foreach ($sp in $sbPages) {
+                $rsp = Invoke-Req -Url ($Base + "/" + $sp) -Session $hs
+                if ($rsp.Body -notmatch "sidebar-link") { $sbMissing += $sp }
+            }
+            Check "H22 sidebar appears on every admin page" ($sbMissing.Count -eq 0) ("missing: " + ($sbMissing -join ", "))
+
+            # H22b: the public homepage must NOT carry an admin sidebar.
+            $pubHome = Invoke-Req -Url ($Base + "/")
+            Check "H22b public homepage has no sidebar" ($pubHome.Body -notmatch "sidebar-link") ""
             # H19: problem cards are flagged in the list itself.
             # The consistency report alone only printed filenames, so the user
             # still had to hunt for the card. Now the card carries a badge.

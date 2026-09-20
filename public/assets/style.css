@@ -1377,3 +1377,106 @@ body.has-errbar .to-top { bottom: 84px; }
 .storage-bar .progress-bar.is-low { background: #d98324; }
 .storage-bar .progress-bar.is-critical { background: var(--danger); }
 .storage-note { margin: 0 0 10px; font-size: 12.5px; }
+
+/* ---------- 后台两栏布局 ----------
+   侧边栏固定宽度，内容区占据剩余空间。
+   窄屏下改为顶部横向滚动条（见下方媒体查询），与站内导航的处理一致。 */
+.admin-shell {
+    display: flex;
+    align-items: flex-start;
+    gap: 22px;
+    padding-top: 22px;
+    padding-bottom: 22px;
+}
+.admin-main {
+    flex: 1 1 auto;
+    min-width: 0;              /* 允许收缩，否则宽表格会把侧边栏挤出去 */
+}
+
+.sidebar {
+    flex: none;
+    width: 188px;
+    position: sticky;
+    top: 84px;                 /* 顶栏高度 + 间距 */
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+.sidebar-title {
+    display: block;
+    padding: 0 10px;
+    margin-bottom: 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: .04em;
+    color: var(--muted);
+    text-transform: uppercase;
+}
+.sidebar-link {
+    display: block;
+    padding: 8px 10px;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: background .14s ease, color .14s ease;
+}
+.sidebar-link:hover { background: var(--bg); }
+.sidebar-label {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+}
+.sidebar-desc {
+    display: block;
+    margin-top: 1px;
+    font-size: 11.5px;
+    color: var(--muted);
+    line-height: 1.4;
+}
+.sidebar-link.is-active { background: var(--accent-soft); }
+.sidebar-link.is-active .sidebar-label { color: var(--accent); font-weight: 600; }
+.sidebar-link.is-active .sidebar-desc { color: var(--accent); opacity: .8; }
+
+/* 侧边栏在窄屏折叠为顶部横向滚动条 */
+@media (max-width: 860px) {
+    .admin-shell {
+        flex-direction: column;
+        gap: 0;
+        padding-top: 14px;
+        /* 必须改回 stretch：基础规则里的 align-items: flex-start 是为横向布局
+           准备的（让侧边栏不被拉伸）。换成纵向后，它会让主内容区**只按内容
+           宽度收缩**，实测窄屏下主区只剩 88px。 */
+        align-items: stretch;
+    }
+    .admin-main { width: 100%; }
+    .sidebar {
+        position: static;
+        width: 100%;
+        flex-direction: row;
+        gap: 4px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-bottom: 10px;
+        margin-bottom: 6px;
+        border-bottom: 1px solid var(--border);
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+    }
+    .sidebar::-webkit-scrollbar { display: none; }
+    .sidebar-group {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        flex: none;
+    }
+    .sidebar-title { display: none; }   /* 横排时分组标题只会占地方 */
+    .sidebar-link {
+        flex: none;
+        white-space: nowrap;
+        padding: 7px 12px;
+        border: 1px solid var(--border);
+    }
+    .sidebar-desc { display: none; }    /* 横排时只留主标题 */
+    .sidebar-link.is-active { border-color: var(--accent); }
+}
+
