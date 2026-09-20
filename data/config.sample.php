@@ -27,6 +27,12 @@ return [
     'site_name'           => 'ElationPic',
     'site_description'    => 'A lightweight personal image hosting system.',
 
+    // 底栏右下角的文字。
+    //
+    // 可放备案号、版权声明或联系方式。按纯文本输出（不解析 HTML）。
+    // 留空时显示默认文案 "Powered by ElationPic"。
+    'footer_note'         => '',
+
     // 首页是否公开。
     //
     //   true （默认）-> 任何人都能浏览图片列表

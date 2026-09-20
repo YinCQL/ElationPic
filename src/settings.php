@@ -26,6 +26,7 @@ function settings_allowed_keys(): array
     return [
         'site_name'          => 'string',
         'site_description'   => 'string',
+        'footer_note'        => 'string',
         'public_gallery'     => 'bool',
         'site_url'           => 'url',
         'base_path'          => 'string',

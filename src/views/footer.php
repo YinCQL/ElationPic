@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+
 // 关闭 <main>。带侧边栏时还多一层 .admin-shell 容器需要收尾，
 // 因此这里必须与 header.php 里的分支保持一致。
 $__hadSidebar = !empty($isAdminPage) && !empty($loggedIn);
@@ -8,22 +9,34 @@ $__hadSidebar = !empty($isAdminPage) && !empty($loggedIn);
 <?php if ($__hadSidebar): ?>
 </div><!-- /.admin-shell -->
 <?php endif; ?>
-<?php $__fdesc = trim((string)cfg()['site_description']); ?>
+<?php
+$__fdesc = trim((string)cfg()['site_description']);
+
+// 底栏右侧内容。
+//
+// 由「站点设置」里的 footer_note 控制，可以放备案号、版权声明、联系方式等。
+// 留空时回落到一句默认文案 —— 底栏右侧空着会显得像没做完。
+//
+// 输出经过 e() 转义（纯文本，不解析 HTML）—— 让这个字段能写 HTML 等于
+// 给后台开了一个注入点；填备案号这类纯文本需求用转义完全够。
+$__fnote = trim((string)(cfg()['footer_note'] ?? ''));
+if ($__fnote === '') {
+    $__fnote = 'Powered by ElationPic';
+}
+?>
 <footer class="site-footer">
     <div class="wrap footer-inner">
         <div class="footer-left">
             <span class="footer-name"><?= e((string)cfg()['site_name']) ?></span>
+            <span class="sep">·</span>
+            <span class="footer-version">v<?= e(APP_VERSION) ?></span>
             <?php if ($__fdesc !== ''): ?>
                 <span class="sep">·</span>
                 <span class="footer-desc"><?= e($__fdesc) ?></span>
             <?php endif; ?>
         </div>
         <div class="footer-right">
-            <a href="<?= e(url('/')) ?>">首页</a>
-            <?php if (!auth_is_logged_in()): ?>
-                <span class="sep">·</span>
-                <a href="<?= e(url('/login.php')) ?>">管理登录</a>
-            <?php endif; ?>
+            <span class="footer-note"><?= e($__fnote) ?></span>
         </div>
     </div>
 </footer>

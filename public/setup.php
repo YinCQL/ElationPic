@@ -495,6 +495,7 @@ if ($method === 'POST') {
                     'admin_password_hash' => $hash,
                     'site_name'           => $siteName !== '' ? $siteName : 'ElationPic',
                     'site_description'    => $siteDesc,
+                    'footer_note'         => '',
                     // 默认公开：安装向导就是给"我要用它"的人看的，
                     // 想关闭的可以在后台「设置」里一键关掉
                     'public_gallery'      => true,

@@ -233,6 +233,7 @@ $defaults = [
     'admin_password_hash' => '',
     'site_name'           => 'ElationPic',
     'site_description'    => 'A lightweight personal image hosting system.',
+    'footer_note'         => '',         // 底栏右侧文字（备案号等），留空用默认
     'public_gallery'      => true,       // 设为 false 关闭首页公开（直链仍有效）
     'timezone'            => 'Asia/Shanghai',
     'site_url'            => '',         // 可选：如 'https://img.example.com'

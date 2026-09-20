@@ -6,6 +6,13 @@ declare(strict_types=1);
  * 生产行为：display_errors=Off、错误只写日志、用户只看到固定文案。
  */
 
+// ---------- 版本 ----------
+//
+// 唯一版本来源。发布新版本时改这里一处即可：
+// 底栏展示、将来的升级提示都从这里取。
+// 与 GitHub Release 的 tag 保持一致（不带 v 前缀）。
+define('APP_VERSION', '1.0.1');
+
 // ---------- 路径常量（§5.2 冻结契约） ----------
 define('APP_ROOT',   dirname(__DIR__));
 define('DATA_DIR',   APP_ROOT . '/data');
@@ -76,6 +83,8 @@ if (!is_array($loaded)) {
 $GLOBALS['__cfg'] = $loaded + [
     'site_name'          => 'ElationPic',
     'site_description'   => 'A lightweight personal image hosting system.',
+    // 底栏右侧文字。留空则显示 "Powered by ElationPic"。
+    'footer_note'        => '',
     // 首页是否公开。关闭后访客看不到图片列表，但直链仍然有效
     // （图片由 Web 服务器直接返回，不经过 PHP，因此不受此开关影响）。
     'public_gallery'     => true,
