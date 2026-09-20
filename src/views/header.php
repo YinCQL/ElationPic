@@ -70,10 +70,13 @@ $__nav = static function (string $file, string $active) use ($__cur): string {
             ?>
             <a class="nav-home <?= $__nav('index.php', 'is-active') ?>" href="<?= e(url('/')) ?>">首页</a>
             <?php if ($loggedIn): ?>
+                <?php
+                // 顶栏只留一个「后台」入口。设置、备份、维护等具体页面
+                // 一律从侧边栏进入 —— 两处都放会让顶栏拥挤，也会出现
+                // 「同一个目标有两个入口、高亮状态还不一致」的问题。
+                ?>
                 <a class="<?= $__nav('admin.php', 'is-active') ?>" href="<?= e(url('/admin.php')) ?>"
                    aria-label="管理后台"><span class="lbl-long">管理后台</span><span class="lbl-short">后台</span></a>
-                <a class="<?= $__nav('settings.php', 'is-active') ?>" href="<?= e(url('/settings.php')) ?>">设置</a>
-                <a class="<?= $__nav('backup.php', 'is-active') ?>" href="<?= e(url('/backup.php')) ?>">备份</a>
                 <form class="inline" method="post" action="<?= e(url('/logout.php')) ?>">
                     <?= csrf_field() ?>
                     <button type="submit" class="link-btn">退出</button>

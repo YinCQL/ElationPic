@@ -172,19 +172,10 @@ require APP_ROOT . '/src/views/header.php';
 </section>
 
 <?php
-// 维护工具已移到独立页面（public/maintenance.php）。
-// 原来这一页同时承担导出、导入、存储概况、缩略图重建、一致性自检五件事，
-// 342 行；按使用频率拆开后，常用入口不再被诊断工具淹没。
+// 维护工具在 maintenance.php，从侧边栏进入。
+// 这里不再放跳转按钮 —— 侧边栏已经是一个常驻入口，
+// 页面里再放一个只会让内容区多出一块没有实际信息的区域。
 ?>
-<section class="panel">
-    <h2>维护工具</h2>
-    <p class="muted">
-        存储概况、重建缩略图、文件一致性自检已移到独立页面。
-    </p>
-    <p>
-        <a class="btn" href="<?= e(url('/maintenance.php')) ?>">打开维护工具</a>
-    </p>
-</section>
 
 <?php if ($rollbacks || $autoBackups): ?>
 <section class="panel">

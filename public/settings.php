@@ -89,6 +89,18 @@ require APP_ROOT . '/src/views/header.php';
         </label>
 
         <label class="field">
+            <span>底栏右侧文字（可选）</span>
+            <input type="text" name="footer_note" maxlength="120"
+                   value="<?= e((string)$val('footer_note')) ?>"
+                   placeholder="Powered by ElationPic">
+            <small class="hint">
+                显示在页面底部右下角。可以放<strong>备案号</strong>、版权声明或联系方式。
+                <br>
+                按纯文本显示（不会解析 HTML）。留空则显示默认文案。
+            </small>
+        </label>
+
+        <label class="field">
             <span>站点网址（可选）</span>
             <input type="text" name="site_url" maxlength="200"
                    placeholder="https://img.example.com"
@@ -121,89 +133,12 @@ require APP_ROOT . '/src/views/header.php';
             <small class="hint">1 ~ 120。</small>
         </label>
 
-        <h2 class="settings-group">安全</h2>
-
-        <label class="field">
-            <span>强制 HTTPS</span>
-            <select name="force_https">
-                <option value="0"<?= ((int)$val('force_https', 0) === 0) ? ' selected' : '' ?>>关闭（本地 HTTP 调试用）</option>
-                <option value="1"<?= ((int)$val('force_https', 0) === 1) ? ' selected' : '' ?>>开启（已配置 HTTPS 时）</option>
-            </select>
-            <small class="hint">
-                开启后 Session Cookie 会带 Secure 标志。若站点还是纯 HTTP，
-                开启它会导致<strong>无法登录</strong>。
-            </small>
-        </label>
-
-        <div class="settings-advanced">
-            <h2 class="settings-group">高级</h2>
-            <p class="muted">一般不需要修改。改错可能导致站点异常。</p>
-
-            <label class="field">
-                <span>上传大小上限（字节）</span>
-                <input type="number" name="max_file_bytes" min="1024" max="104857600"
-                       value="<?= (int)$val('max_file_bytes', 10485760) ?>">
-                <small class="hint">同时需保证 PHP 的 upload_max_filesize 与 post_max_size 不低于此值。</small>
-            </label>
-
-            <label class="field">
-                <span>缩略图最长边（像素）</span>
-                <input type="number" name="thumb_max_edge" min="0" max="4000"
-                       value="<?= (int)$val('thumb_max_edge', 480) ?>">
-                <small class="hint">只影响之后上传的新图片；0 表示不生成缩略图。</small>
-            </label>
-
-            <label class="field field-check">
-                <input type="checkbox" name="strip_metadata" value="1"
-                       <?= !empty($val('strip_metadata', true)) ? 'checked' : '' ?>>
-                <span>上传时移除照片中的隐私信息（推荐）</span>
-                <small class="hint">
-                    手机拍摄的照片通常带有 <strong>GPS 坐标</strong>、拍摄时间、设备型号。
-                    这些信息会随原图一起公开。开启后会上传时移除它们。
-                    <br>
-                    实现方式是<strong>只删除元数据段，不重新压缩图片</strong> ——
-                    画面像素保持逐字节不变。仅对 JPEG / PNG / WebP 生效，GIF 不受影响。
-                </small>
-            </label>
-
-            <label class="field">
-                <span>登录失败上限（次）</span>
-                <input type="number" name="login_max_attempts" min="1" max="100"
-                       value="<?= (int)$val('login_max_attempts', 5) ?>">
-            </label>
-
-            <label class="field">
-                <span>登录锁定时长（秒）</span>
-                <input type="number" name="login_lockout_secs" min="60" max="86400"
-                       value="<?= (int)$val('login_lockout_secs', 900) ?>">
-            </label>
-
-            <label class="field">
-                <span>基础路径</span>
-                <input type="text" name="base_path" maxlength="200"
-                       value="<?= e((string)$val('base_path')) ?>">
-                <small class="hint">
-                    站点根指向 public/ 时留空即可（程序会自动校正）。
-                    仅当以子目录方式部署时才需要填写，如 <code>/img/public</code>。
-                </small>
-            </label>
-
-            <label class="field">
-                <span>时区</span>
-                <input type="text" name="timezone" maxlength="64"
-                       value="<?= e((string)$val('timezone', 'Asia/Shanghai')) ?>">
-                <small class="hint">PHP 时区标识符，如 Asia/Shanghai。</small>
-            </label>
-        </div>
-
         <button type="submit" class="btn btn-primary">保存设置</button>
     </form>
-</section>
 
-<section class="panel">
-    <h2>修改管理员密码</h2>
-    <p class="muted">修改后当前会话保持登录，其他设备上的会话不受影响。</p>
-    <p><a class="btn" href="<?= e(url('/password.php')) ?>">前往修改密码</a></p>
+    <p class="muted settings-note">
+        上传上限、缩略图、登录限制等在<a href="<?= e(url('/settings-advanced.php')) ?>">安全与高级</a>页。
+    </p>
 </section>
 
 <?php require APP_ROOT . '/src/views/footer.php'; ?>
