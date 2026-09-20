@@ -32,7 +32,7 @@ jobs:
 
     steps:
       - name: Check out
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Validate version format
         shell: pwsh
@@ -62,7 +62,7 @@ jobs:
           "zip=$target" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ElationPic-${{ inputs.version }}
           path: ${{ steps.pack.outputs.zip }}
