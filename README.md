@@ -185,7 +185,8 @@ elationpic/
 │   ├── setup.php              安装向导
 │   ├── login.php              登录
 │   ├── admin.php              后台管理
-│   ├── settings.php           站点设置
+│   ├── settings.php           站点设置（标题、描述、浏览）
+│   ├── settings-advanced.php  安全与高级（上传、部署、安全）
 │   ├── password.php           修改密码
 │   ├── backup.php             备份与恢复
 │   ├── maintenance.php        维护工具（存储、缩略图、自检）

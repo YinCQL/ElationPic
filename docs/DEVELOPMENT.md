@@ -23,7 +23,9 @@ public/          网站根目录（DocumentRoot 指向这里）
   index.php      首页（公开）
   setup.php      安装向导
   admin.php      后台管理（图片列表与上传）
-  settings.php   站点设置
+  settings.php   站点设置（标题、描述、浏览）
+  settings-advanced.php 安全与高级（上传上限、缩略图、部署、登录限制）
+  password.php   修改密码
   backup.php     备份与恢复（导出 / 导入）
   maintenance.php 维护工具（存储、重建缩略图、一致性自检）
   upload.php     上传接口
