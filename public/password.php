@@ -88,7 +88,7 @@ $isAdminPage = true;
 require APP_ROOT . '/src/views/header.php';
 ?>
 
-<section class="panel panel-narrow">
+<section class="panel panel-form">
     <h1>修改管理员密码</h1>
 
     <?php if ($done): ?>

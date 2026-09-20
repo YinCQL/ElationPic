@@ -677,11 +677,23 @@ select:focus-visible,
     background: var(--bg);
 }
 
-/* ---------- 页脚 ---------- */
+/* ---------- 页脚 ----------
+   固定在视口底部：内容不足一屏时也贴在下面，而不是浮在页面中间。
+   做法是让 body 成为纵向 flex 容器、主内容区 flex:1 ——
+   比 position:fixed 好，因为内容超过一屏时会自然跟着滚动，
+   不需要给 body 预留一块等高的 padding。 */
+body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+main { flex: 1 0 auto; }
+
 .site-footer {
     margin-top: 44px;
     border-top: 1px solid var(--border);
     background: var(--surface);
+    flex: none;
 }
 .footer-inner {
     display: flex;
@@ -694,9 +706,26 @@ select:focus-visible,
     font-size: 13px;
     color: var(--muted);
 }
+.footer-left {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-wrap: wrap;
+    min-width: 0;
+}
 .footer-name { color: var(--text); font-weight: 500; }
+.footer-version { color: var(--muted); font-variant-numeric: tabular-nums; }
+.footer-note { color: var(--muted); }
+.footer-right { text-align: right; }
 .footer-right a { color: var(--muted); }
 .footer-right a:hover { color: var(--accent); }
+.footer-right { margin-left: auto; }
+
+@media (max-width: 520px) {
+    /* 窄屏下左右两组各占一行，右对齐的备案号改为左对齐更易读 */
+    .footer-inner { flex-direction: column; align-items: flex-start; gap: 6px; }
+    .footer-right { text-align: left; margin-left: 0; }
+}
 .footer-right .sep { margin: 0 6px; opacity: .5; }
 
 /* ---------- 英雄区（首页标题） ---------- */
@@ -854,6 +883,13 @@ h3 { font-size: 17px; }
 .panel.panel-narrow {
     max-width: 420px;
     margin: 46px auto;
+}
+/* 表单型页面（修改密码等）。比 panel-narrow 宽一些：
+   窄面板适合登录那种只有两个输入框的场景，
+   而带说明文字的表单在 420px 下每行都要折好几次。 */
+.panel.panel-form {
+    max-width: 620px;
+    margin: 34px auto;
 }
 .panel h1 { margin: 0 0 8px; font-size: 22px; }
 .panel h2 { margin: 0 0 10px; font-size: 18px; }
@@ -1480,3 +1516,6 @@ body.has-errbar .to-top { bottom: 84px; }
     .sidebar-link.is-active { border-color: var(--accent); }
 }
 
+
+/* 设置页底部的跳转提示 */
+.settings-note { margin-top: 18px; font-size: 13px; }

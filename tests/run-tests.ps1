@@ -957,7 +957,7 @@ if ($Scenario -in @("all","backup")) {
 
             # H22: the sidebar must appear on every admin page and nowhere else.
             # A missing sidebar on one page would strand the user there.
-            $sbPages = @("admin.php", "settings.php", "backup.php", "maintenance.php", "password.php")
+            $sbPages = @("admin.php", "settings.php", "settings-advanced.php", "backup.php", "maintenance.php", "password.php")
             $sbMissing = @()
             foreach ($sp in $sbPages) {
                 $rsp = Invoke-Req -Url ($Base + "/" + $sp) -Session $hs
