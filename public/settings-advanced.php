@@ -39,7 +39,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $input = $_POST;
         unset($input['csrf_token']);
 
+        // 先校验（需要读 _form_keys），再清掉标记。
         $res = settings_validate($input, $cfgData);
+        unset($input[SETTINGS_FORM_KEYS_FIELD]);
         if (!$res['ok']) {
             $errors = $res['errors'];
         } elseif (!settings_save($res['cfg'])) {
@@ -80,6 +82,9 @@ require APP_ROOT . '/src/views/header.php';
 
     <form method="post" action="<?= e(url('/settings-advanced.php')) ?>" autocomplete="off">
         <?= csrf_field() ?>
+        <?php // 同 settings.php：声明本页负责的键，避免清掉其他页面的复选框。 ?>
+        <input type="hidden" name="<?= e(SETTINGS_FORM_KEYS_FIELD) ?>"
+               value="force_https,login_max_attempts,login_lockout_secs,max_file_bytes,thumb_max_edge,strip_metadata,base_path,timezone">
 
         <h2 class="settings-group">安全</h2>
 

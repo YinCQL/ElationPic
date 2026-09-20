@@ -34,7 +34,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $input = $_POST;
         unset($input['csrf_token']);
 
+        // 注意顺序：settings_validate() 需要读 _form_keys 才能判断
+        // "复选框不在本页"与"用户取消了勾选"。因此先校验，再清掉标记 ——
+        // 它在白名单循环里本来就会被忽略，清掉只是为了让下面的日志干净。
         $res = settings_validate($input, $cfgData);
+        unset($input[SETTINGS_FORM_KEYS_FIELD]);
         if (!$res['ok']) {
             $errors = $res['errors'];
         } elseif (!settings_save($res['cfg'])) {
@@ -71,6 +75,12 @@ require APP_ROOT . '/src/views/header.php';
 
     <form method="post" action="<?= e(url('/settings.php')) ?>" autocomplete="off">
         <?= csrf_field() ?>
+        <?php
+        // 声明本页负责哪些键。校验器据此区分"用户取消了勾选"与
+        // "这个字段根本不在本页上" —— 否则保存本页会清掉其他页的复选框。
+        ?>
+        <input type="hidden" name="<?= e(SETTINGS_FORM_KEYS_FIELD) ?>"
+               value="site_name,site_description,footer_note,site_url,public_gallery,per_page">
 
         <h2 class="settings-group">基本信息</h2>
 

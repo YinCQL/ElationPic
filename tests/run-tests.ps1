@@ -968,6 +968,63 @@ if ($Scenario -in @("all","backup")) {
             # H22b: the public homepage must NOT carry an admin sidebar.
             $pubHome = Invoke-Req -Url ($Base + "/")
             Check "H22b public homepage has no sidebar" ($pubHome.Body -notmatch "sidebar-link") ""
+            # H23: saving one settings page must not clear another page's checkbox.
+            #
+            # This was a real data-loss bug. Checkboxes are simply absent from a
+            # POST when unticked, which is how the original code detected "user
+            # turned it off" -- but once settings were split across pages, an
+            # absent box could equally mean "this page has no such field".
+            # Saving either page silently cleared the other page's setting.
+            #
+            # The fix has each form declare the keys it owns via _form_keys.
+            # This walks the exact reported sequence.
+            $setA = Invoke-Req -Url ($Base + "/settings.php") -Session $hs
+            $tokA = ""
+            $mA = [regex]::Match([string]$setA.Body, 'name="csrf_token"\s+value="([^"]+)"')
+            if ($mA.Success) { $tokA = $mA.Groups[1].Value }
+
+            $setB = Invoke-Req -Url ($Base + "/settings-advanced.php") -Session $hs
+            $tokB = ""
+            $mB = [regex]::Match([string]$setB.Body, 'name="csrf_token"\s+value="([^"]+)"')
+            if ($mB.Success) { $tokB = $mB.Groups[1].Value }
+
+            $keysA = "site_name,site_description,footer_note,site_url,public_gallery,per_page"
+            $keysB = "force_https,login_max_attempts,login_lockout_secs,max_file_bytes,thumb_max_edge,strip_metadata,base_path,timezone"
+
+            # Save page A with its checkbox ticked.
+            $bodyA = "csrf_token=" + [uri]::EscapeDataString($tokA) +
+                     "&_form_keys=" + [uri]::EscapeDataString($keysA) +
+                     "&site_name=Test&site_description=&footer_note=&site_url=&per_page=20" +
+                     "&public_gallery=1"
+            $null = Invoke-Req -Method POST -Url ($Base + "/settings.php") -Body $bodyA -ContentType "application/x-www-form-urlencoded" -Session $hs
+
+            # Save page B with its checkbox ticked.
+            $bodyB = "csrf_token=" + [uri]::EscapeDataString($tokB) +
+                     "&_form_keys=" + [uri]::EscapeDataString($keysB) +
+                     "&force_https=0&login_max_attempts=5&login_lockout_secs=900" +
+                     "&max_file_bytes=10485760&thumb_max_edge=480&base_path=&timezone=UTC" +
+                     "&strip_metadata=1"
+            $null = Invoke-Req -Method POST -Url ($Base + "/settings-advanced.php") -Body $bodyB -ContentType "application/x-www-form-urlencoded" -Session $hs
+
+            # Both must still be on. Read them back through the rendered forms,
+            # which is what the user actually sees.
+            $chkA = Invoke-Req -Url ($Base + "/settings.php") -Session $hs
+            $chkB = Invoke-Req -Url ($Base + "/settings-advanced.php") -Session $hs
+            $onA = ($chkA.Body -match 'name="public_gallery"[^>]*checked')
+            $onB = ($chkB.Body -match 'name="strip_metadata"[^>]*checked')
+            Check "H23 saving one page keeps the other page's checkbox" ($onA -and $onB) ("public_gallery=" + $onA + " strip_metadata=" + $onB)
+
+            # H23b: unticking must still work on the page that owns the field.
+            $bodyOff = "csrf_token=" + [uri]::EscapeDataString($tokA) +
+                       "&_form_keys=" + [uri]::EscapeDataString($keysA) +
+                       "&site_name=Test&site_description=&footer_note=&site_url=&per_page=20"
+            $null = Invoke-Req -Method POST -Url ($Base + "/settings.php") -Body $bodyOff -ContentType "application/x-www-form-urlencoded" -Session $hs
+            $afterOff = Invoke-Req -Url ($Base + "/settings.php") -Session $hs
+            $stillOn = ($afterOff.Body -match 'name="public_gallery"[^>]*checked')
+            Check "H23b unticking a checkbox still turns it off" (-not $stillOn) ("still checked=" + $stillOn)
+
+            # Restore it, so later assertions see the default state.
+            $null = Invoke-Req -Method POST -Url ($Base + "/settings.php") -Body $bodyA -ContentType "application/x-www-form-urlencoded" -Session $hs
             # H19: problem cards are flagged in the list itself.
             # The consistency report alone only printed filenames, so the user
             # still had to hunt for the card. Now the card carries a badge.

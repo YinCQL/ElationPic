@@ -20,6 +20,14 @@ declare(strict_types=1);
  *      否则 data/ 一旦可被 Web 访问就会泄露密码哈希。
  */
 
+/**
+ * 表单用它声明"本页负责哪些配置键"（逗号分隔的隐藏字段）。
+ *
+ * 存在的理由：复选框未勾选时不会提交，而配置项现已分散在多个页面。
+ * 没有这个声明，保存一个页面就会把另一个页面的复选框清掉。
+ */
+const SETTINGS_FORM_KEYS_FIELD = '_form_keys';
+
 /** 允许通过界面修改的配置键及其类型。 */
 function settings_allowed_keys(): array
 {
@@ -131,16 +139,34 @@ function settings_validate(array $input, array $current): array
     $out    = $current;
     $ranges = settings_ranges();
 
-    // 复选框在未勾选时浏览器**根本不会提交该字段**。
-    // 若沿用"缺失即跳过"的逻辑，用户就永远无法把它关掉。
-    // 因此这些键在缺失时按 false 处理。
+    // 复选框在未勾选时浏览器**根本不会提交该字段**，所以"缺失"必须按
+    // false 处理，否则用户永远关不掉它。
+    //
+    // 但设置被拆到多个页面后，"缺失"有了第二种含义：
+    //   settings.php 提交时不含 strip_metadata —— 那是因为**这个字段不在该页上**，
+    //   而不是用户取消勾选了它。
+    // 若两种情况都按 false 处理，保存 A 页就会把 B 页的勾选清掉（真实缺陷）。
+    //
+    // 因此由表单声明自己负责哪些键：页面输出一个隐藏字段 _form_keys，
+    // 逗号分隔。只有"本页负责 + 未提交"才判定为取消勾选。
+    //
+    // 没有该标记时（旧页面缓存、外部调用）退回"缺失即 false"的旧行为 ——
+    // 宁可保持原语义，也不要让复选框变成关不掉。
     $checkboxes = ['strip_metadata', 'public_gallery'];
+
+    $owned = null;   // null = 未声明，沿用旧行为
+    if (isset($input[SETTINGS_FORM_KEYS_FIELD]) && is_string($input[SETTINGS_FORM_KEYS_FIELD])) {
+        $owned = array_filter(array_map('trim', explode(',', $input[SETTINGS_FORM_KEYS_FIELD])), 'strlen');
+    }
 
     foreach (settings_allowed_keys() as $key => $type) {
         $isCheckbox = in_array($key, $checkboxes, true);
         if (!array_key_exists($key, $input)) {
             if ($isCheckbox) {
-                $out[$key] = false;
+                // 仅当本页确实有这个字段时，才认为用户取消了勾选。
+                if ($owned === null || in_array($key, $owned, true)) {
+                    $out[$key] = false;
+                }
             }
             continue;
         }
