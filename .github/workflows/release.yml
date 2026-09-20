@@ -1,0 +1,97 @@
+# ==========================================================================
+# 打包并发布 Release
+#
+# 触发方式：在 Actions 页面手动运行，填入版本号（如 v1.0.0）。
+# 该版本号会作为 git tag 与 Release 名称。
+#
+# 打包逻辑复用 tools/make-package.ps1，不在这里重新实现 ——
+# 否则本地打的包与 CI 打的包会逐渐分叉。
+#
+# 该脚本自带交付前校验：确认压缩包内不含 config.php、数据库、日志、
+# 回滚点或用户图片，发现即删除该包并非零退出。
+# 因此这一步同时充当发布前的安全检查：校验不通过就不会有 Release。
+# ==========================================================================
+
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号，将作为 tag 与 Release 名称（例如 v1.0.0）'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    name: Build and publish
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Validate version format
+        shell: pwsh
+        run: |
+          $v = '${{ inputs.version }}'
+          # 只接受 v1 / v1.2 / v1.2.3 这类形式，避免把奇怪字符串写成 tag
+          if ($v -notmatch '^v\d+(\.\d+)*$') {
+              throw "版本号格式不正确：'$v'。应形如 v1.0.0"
+          }
+          Write-Host "版本号: $v"
+
+      - name: Build package
+        shell: pwsh
+        run: |
+          ./tools/make-package.ps1 -OutDir "${{ github.workspace }}/dist"
+
+      - name: Rename to the release version
+        id: pack
+        shell: pwsh
+        run: |
+          $zip = Get-ChildItem dist/*.zip | Select-Object -First 1
+          if (-not $zip) { throw '打包没有产出 zip' }
+          $target = "dist/ElationPic-${{ inputs.version }}.zip"
+          Move-Item $zip.FullName $target -Force
+          $size = [math]::Round((Get-Item $target).Length / 1KB, 1)
+          Write-Host "产出: $target ($size KB)"
+          "zip=$target" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ElationPic-${{ inputs.version }}
+          path: ${{ steps.pack.outputs.zip }}
+          if-no-files-found: error
+
+      - name: Create release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = '${{ inputs.version }}'
+          $zip = '${{ steps.pack.outputs.zip }}'
+
+          # 先确认这个 tag 还没有被用过。直接创建在 tag 已存在时会失败，
+          # 而报错信息不会说明原因，所以这里主动检查并给出明确提示。
+          gh release view $tag --json tagName 2>$null | Out-Null
+          if ($LASTEXITCODE -eq 0) {
+              throw "版本 $tag 已经发布过了。请换一个版本号（例如递增到下一个补丁版本）。"
+          }
+
+          # Release 正文用 here-string，避免转义问题
+          $notes = @"
+          ## ElationPic $tag
+
+          下载下面的 zip，解压后**把网站根目录指向 ``public/``**，浏览器打开站点即可进入安装向导。
+
+          向导会先做一次服务器环境检查（PHP 版本、扩展、目录权限、
+          ``uploads/`` 是否会被当作脚本执行等），不通过则不会继续安装。
+
+          完整说明见包内的 README.md。
+          "@
+          gh release create $tag $zip --title "ElationPic $tag" --notes $notes

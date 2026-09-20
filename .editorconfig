@@ -1,0 +1,45 @@
+# https://editorconfig.org
+# 目的：让不同编辑器产出的文件风格一致，避免"整文件 diff"这种无意义改动。
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+# PHP 使用 4 空格缩进
+[*.php]
+indent_size = 4
+
+# 前端资源使用 2 空格缩进
+[*.{js,css,json}]
+indent_size = 2
+
+# Markdown 不裁剪行尾空格 —— 两个空格在 Markdown 里表示换行
+[*.md]
+trim_trailing_whitespace = false
+
+# YAML 使用 2 空格
+[*.{yml,yaml}]
+indent_size = 2
+
+# Windows 批处理与 PowerShell：保持 CRLF（与 .gitattributes 一致）
+[*.{ps1,bat,cmd}]
+end_of_line = crlf
+indent_size = 4
+
+# Nginx / PHP 配置片段
+[*.{conf,ini}]
+indent_size = 4
+
+# 明确不做任何处理的文件
+[LICENSE]
+insert_final_newline = false
+
+[*.{jpg,jpeg,png,gif,webp,ico,zip}]
+insert_final_newline = false
+trim_trailing_whitespace = false

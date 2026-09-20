@@ -1,7 +1,7 @@
 ﻿<#
     ElationPic - 打包脚本
 
-    生成一个可分发的 zip 包，包含运行所需的全部代码与文档。
+    生成可分发的 zip：解压后把网站根目录指向 public/ 即可安装。
 
     用法：
         powershell -ExecutionPolicy Bypass -File tools\make-package.ps1
@@ -9,26 +9,23 @@
         powershell -ExecutionPolicy Bypass -File tools\make-package.ps1 -IncludeUploads
 
     参数：
-        -OutDir <路径>      输出目录，默认 <项目>\dist
-        -IncludeUploads     把 public\uploads 里的图片也打进去（默认不打）
-        -IncludeTests       把 tests\fixtures 的大文件也打进去（默认不打）
+        -OutDir <路径>    输出目录，默认 <项目>\dist
+        -IncludeUploads   连 public\uploads 里的图片一起打包（整站迁移用）
+        -IncludeTests     连 tests\fixtures 的造数据大文件一起打包
 
     ------------------------------------------------------------------
     编码要求：本文件必须以 **UTF-8 带 BOM** 保存。
-    Windows PowerShell 5.1 在没有 BOM 时会按 ANSI 解读 .ps1，
-    里面的中文会变成乱码并导致语法错误。
-    （实测确认：同一个文件带 BOM 正常输出中文，不带 BOM 输出乱码。）
-    如果需要修改本文件，请确保编辑器保存时保留 BOM。
+    Windows PowerShell 5.1 在没有 BOM 时按 ANSI 解读 .ps1，
+    中文会变乱码并导致语法错误。
     ------------------------------------------------------------------
 
     打包原则：
-        1. 绝不包含机密：data\config.php（含管理员密码哈希）、
-           data\database.sqlite（真实数据）、data\logs（可能含访问痕迹）
-        2. 绝不包含过程产物：data\*.before-import-*（回滚点）、data\tmp
-        3. 默认不含用户图片：public\uploads 里是使用者的图，
-           分发时应当为空。需要连图一起备份时用 -IncludeUploads
-        4. 不含测试大文件：tests\fixtures 里的造数据文件
-        5. 不含截图等审计过程产物：tests\shots
+      1. 绝不包含机密：data\config.php（含管理员密码哈希）、
+         data\database.sqlite（真实数据）、data\logs（可能含访问痕迹）
+      2. 绝不包含过程产物：data\*.before-import-*、data\tmp
+      3. 默认不含用户图片，需要时用 -IncludeUploads
+      4. 不含版本控制产物（.gitkeep 等）—— 用户不该看到这些
+      5. 结束前做一次交付校验：包内出现上面任何一类即删除该包并非零退出
 #>
 
 [CmdletBinding()]
@@ -40,76 +37,61 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-# 项目根目录 = 本脚本所在目录的上一级
+# 项目根 = 本脚本所在目录的上一级
 $Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
-if ([string]::IsNullOrEmpty($OutDir)) {
-    $OutDir = Join-Path $Root "dist"
-}
+if ([string]::IsNullOrEmpty($OutDir)) { $OutDir = Join-Path $Root "dist" }
 
 Write-Host ""
 Write-Host "=== ElationPic 打包 ===" -ForegroundColor Cyan
-Write-Host "  项目根目录 : $Root"
+Write-Host "  项目根     : $Root"
 Write-Host "  输出目录   : $OutDir"
-Write-Host ""
 
 if (-not (Test-Path $Root)) {
     Write-Host "[错误] 找不到项目根目录：$Root" -ForegroundColor Red
     exit 1
 }
 
-$stamp   = Get-Date -Format "yyyyMMdd-HHmmss"
-$pkgName = "elationpic-$stamp"
-
-if (-not (Test-Path $OutDir)) {
-    New-Item -ItemType Directory -Path $OutDir -Force | Out-Null
-}
-
-# 用系统临时目录搭建内容，最后整体压缩
-$stage = Join-Path ([System.IO.Path]::GetTempPath()) ("elation-stage-" + [guid]::NewGuid().ToString("N").Substring(0, 8))
+$stage = Join-Path ([System.IO.Path]::GetTempPath()) ("elationpic-stage-" + [guid]::NewGuid().ToString("N").Substring(0, 8))
 New-Item -ItemType Directory -Path $stage -Force | Out-Null
-
-Write-Host "  暂存目录   : $stage"
-Write-Host ""
 
 $script:copied  = 0
 $script:skipped = New-Object System.Collections.ArrayList
 
-function Copy-ItemSafe {
+function Skip-Note {
+    param([string]$What, [string]$Why)
+    [void]$script:skipped.Add(("  - " + $What.PadRight(34) + $Why))
+}
+
+# 把项目里的一个文件/目录复制到暂存区
+function Copy-ToStage {
     param([string]$RelPath)
     $src = Join-Path $Root $RelPath
     if (-not (Test-Path $src)) { return }
     $dst = Join-Path $stage $RelPath
     $dstDir = Split-Path -Parent $dst
-    if (-not (Test-Path $dstDir)) {
+    if ($dstDir -and -not (Test-Path $dstDir)) {
         New-Item -ItemType Directory -Path $dstDir -Force | Out-Null
     }
     Copy-Item -Path $src -Destination $dst -Recurse -Force
     $script:copied++
 }
 
-function Skip-Note {
-    param([string]$What, [string]$Why)
-    [void]$script:skipped.Add(("  - " + $What.PadRight(36) + $Why))
-}
-
-# ---- 1. 应用代码 ----
-# 注意：public 必须**逐项复制**，不能用 Copy-ItemSafe 整棵复制 ——
-# 因为 public\uploads 里面是使用者上传的图片，默认不该进包。
-# （早期版本整棵复制，导致默认打包会把用户图片一起发出去。）
+# ------------------------------------------------------------------
+# 1. 应用代码
+# ------------------------------------------------------------------
 Write-Host "  收集应用代码..." -ForegroundColor Gray
-Copy-ItemSafe "src"
-Copy-ItemSafe "deploy"
+Copy-ToStage "src"
+Copy-ToStage "deploy"
 
+# public/ 需要逐项复制：uploads/ 里的用户图片默认不进包
 $pubSrc = Join-Path $Root "public"
 if (Test-Path $pubSrc) {
     $pubDst = Join-Path $stage "public"
     New-Item -ItemType Directory -Path $pubDst -Force | Out-Null
-
-    Get-ChildItem $pubSrc -File | ForEach-Object {
+    Get-ChildItem $pubSrc -File | Where-Object { $_.Name -ne ".gitkeep" } | ForEach-Object {
         Copy-Item $_.FullName $pubDst -Force
         $script:copied++
     }
-    # 子目录：assets 要带，uploads 交给下面的开关决定
     $assetsSrc = Join-Path $pubSrc "assets"
     if (Test-Path $assetsSrc) {
         $assetsDst = Join-Path $pubDst "assets"
@@ -118,18 +100,14 @@ if (Test-Path $pubSrc) {
         $script:copied++
     }
 }
-foreach ($f in @("README.md", "index.php", ".htaccess", "nginx.htaccess", "public_root_index.php")) {
-    Copy-ItemSafe $f
-}
 
-# 设计要求原文（存在就带上，便于对照）
-if (Test-Path (Join-Path $Root "极简图床设计要求.md")) {
-    Copy-Item (Join-Path $Root "极简图床设计要求.md") $stage -Force
-    $script:copied++
-}
-
-# ---- 2. 文档 ----
+# ------------------------------------------------------------------
+# 2. 顶层文件与文档
+# ------------------------------------------------------------------
 Write-Host "  收集文档..." -ForegroundColor Gray
+foreach ($f in @("README.md", "LICENSE", "CONTRIBUTING.md", ".editorconfig")) {
+    Copy-ToStage $f
+}
 $docsSrc = Join-Path $Root "docs"
 if (Test-Path $docsSrc) {
     $docsDst = Join-Path $stage "docs"
@@ -140,33 +118,32 @@ if (Test-Path $docsSrc) {
     }
 }
 
-# ---- 3. 测试脚本（不含大文件、截图、临时结果） ----
+# ------------------------------------------------------------------
+# 3. 测试脚本（不含大文件与截图）
+# ------------------------------------------------------------------
 Write-Host "  收集测试脚本..." -ForegroundColor Gray
 $testsSrc = Join-Path $Root "tests"
 if (Test-Path $testsSrc) {
     Get-ChildItem $testsSrc -Recurse -File | ForEach-Object {
         $rel = $_.FullName.Substring($testsSrc.Length + 1)
-
-        if (-not $IncludeTests -and $rel -like "fixtures*") { return }   # 造数据大文件
-        if ($rel -like "shots*") { return }                              # 审计截图
-        if ($rel -like "*.txt") { return }                               # 测试临时结果
-        if ($rel -like "__*") { return }                                 # 临时探针
-
+        if (-not $IncludeTests -and $rel -like "fixtures*") { return }
+        if ($rel -like "shots*") { return }
+        if ($rel -like "*.txt")    { return }
+        if ($rel -like "__*")      { return }
         $dst = Join-Path (Join-Path $stage "tests") $rel
         $dstDir = Split-Path -Parent $dst
-        if (-not (Test-Path $dstDir)) {
-            New-Item -ItemType Directory -Path $dstDir -Force | Out-Null
-        }
+        if (-not (Test-Path $dstDir)) { New-Item -ItemType Directory -Path $dstDir -Force | Out-Null }
         Copy-Item $_.FullName $dst -Force
         $script:copied++
     }
 }
 
-# ---- 4. data：只带模板与脚本，绝不带真实数据 ----
+# ------------------------------------------------------------------
+# 4. data：只带模板与脚本
+# ------------------------------------------------------------------
 Write-Host "  收集数据目录模板..." -ForegroundColor Gray
 $dataDst = Join-Path $stage "data"
 New-Item -ItemType Directory -Path $dataDst -Force | Out-Null
-
 foreach ($f in @("config.sample.php", "install.php", "backup.php")) {
     $src = Join-Path $Root "data\$f"
     if (Test-Path $src) {
@@ -175,179 +152,160 @@ foreach ($f in @("config.sample.php", "install.php", "backup.php")) {
     }
 }
 
-# 空目录占位，保证解压后结构完整（程序本身也会自动创建）
-foreach ($d in @("data\logs", "data\sessions", "data\tmp", "backup", "public")) {
+Skip-Note "data\config.php"          "含管理员密码哈希"
+Skip-Note "data\database.sqlite"     "真实数据"
+Skip-Note "data\logs\*"             "运行日志"
+Skip-Note "data\*.before-import-*"   "导入回滚点"
+Skip-Note "data\tmp\*"              "临时文件"
+
+# ------------------------------------------------------------------
+# 5. 空目录骨架
+# ------------------------------------------------------------------
+# 程序首次运行会自动创建这些目录，这里先建好，让解压后的结构一目了然。
+# 注意：**不放 .gitkeep** —— 那是版本控制的产物，
+# 用户下载的包里出现莫名其妙的点文件会让人困惑。
+foreach ($d in @("data\logs", "data\sessions", "data\tmp", "backup", "public\uploads", "public\uploads\thumbs")) {
     $p = Join-Path $stage $d
-    if (-not (Test-Path $p)) {
-        New-Item -ItemType Directory -Path $p -Force | Out-Null
-    }
-    Set-Content -Path (Join-Path $p ".gitkeep") -Value "" -NoNewline -Encoding ASCII
+    if (-not (Test-Path $p)) { New-Item -ItemType Directory -Path $p -Force | Out-Null }
 }
 
-Skip-Note "data\config.php"              "含管理员密码哈希"
-Skip-Note "data\database.sqlite"         "真实数据"
-Skip-Note "data\logs\*"                 "运行日志"
-Skip-Note "data\*.before-import-*"       "导入回滚点"
-Skip-Note "data\tmp\*"                  "临时文件"
-
-# ---- 5. uploads ----
-# 无论是否包含图片，都要建出目录骨架，让解压后结构完整
-foreach ($d in @("public\uploads", "public\uploads\thumbs")) {
-    $p = Join-Path $stage $d
-    if (-not (Test-Path $p)) {
-        New-Item -ItemType Directory -Path $p -Force | Out-Null
-    }
-    Set-Content -Path (Join-Path $p ".gitkeep") -Value "" -NoNewline -Encoding ASCII
-}
-
+# 可选：连同用户图片一起打包
 if ($IncludeUploads) {
     Write-Host "  收集图片（-IncludeUploads）..." -ForegroundColor Gray
     $upSrc = Join-Path $Root "public\uploads"
     if (Test-Path $upSrc) {
-        Get-ChildItem $upSrc -Recurse -File | ForEach-Object {
+        Get-ChildItem $upSrc -Recurse -File | Where-Object { $_.Name -ne ".gitkeep" } | ForEach-Object {
             $rel = $_.FullName.Substring($upSrc.Length + 1)
             $dst = Join-Path (Join-Path $stage "public\uploads") $rel
             $dstDir = Split-Path -Parent $dst
-            if (-not (Test-Path $dstDir)) {
-                New-Item -ItemType Directory -Path $dstDir -Force | Out-Null
-            }
+            if (-not (Test-Path $dstDir)) { New-Item -ItemType Directory -Path $dstDir -Force | Out-Null }
             Copy-Item $_.FullName $dst -Force
             $script:copied++
         }
     }
 } else {
-    Skip-Note "public\uploads\*"            "用户图片（需要时加 -IncludeUploads）"
+    Skip-Note "public\uploads\*"        "用户图片（需要时加 -IncludeUploads）"
 }
-
 # ------------------------------------------------------------------
-# 生成包内说明
+# 6. 生成包内《快速上手》
 # ------------------------------------------------------------------
 $quickStart = @'
-ElationPic — 极简个人图床
-============================
+================================================================
+ElationPic
+轻量个人图床
+================================================================
 
-单管理员、零依赖的 PHP 图片托管程序。
-完整文档见 README.md，部署细节见 deploy/README-DEPLOY.md。
+三步上手
+--------
+
+1) 把本目录放到网站根目录之外，再把网站根目录指向 public/
+
+     本目录位置   /srv/elationpic
+     网站根目录   /srv/elationpic/public     <-- 指向 public，不是本目录
+
+   为什么必须这样做：data/ 里是数据库与配置（含管理员密码），
+   它在 public/ 之外，Web 服务器就永远访问不到它。
+
+2) 浏览器打开你的站点
+
+   会进入安装向导。向导先做一次服务器环境检查
+   （PHP 版本、扩展、目录权限、uploads 是否会被当作脚本执行等），
+   检查不通过不会继续安装，并会说明具体缺什么。
+
+3) 通过检查后填写站点信息与管理密码，完成安装
 
 
-最快上手（3 步）
-----------------
+服务器要求
+----------
 
-1. 把本目录放到网站根目录之外，然后把网站根目录指向 public
-   例如：
-       程序位置   D:siteselation
-       网站根目录 D:siteselationpublic
+   PHP      8.0.2 或更高
+   扩展     pdo_sqlite、gd、fileinfo、json、zip
+   数据库   无需安装，使用 PHP 自带的 SQLite
+   Web      Nginx / Apache 均可
 
-   Nginx 的 root 要写 public 的绝对路径，不要写项目根。
-
-2. 浏览器打开站点，会进入安装向导
-
-   向导会让你设置管理员密码、站点名称与描述、站点网址、
-   每页显示数量、上传大小上限、缩略图最长边。
-
-3. 完成后登录后台即可上传图片。
+  安装向导会逐项检查这些，缺什么会直接告诉你。
 
 
-必须确认的三件事
-----------------
+最重要的一条安全设置
+--------------------
 
-1) uploads 目录不能执行 PHP
+  uploads/ 目录绝对不能被当作脚本执行。
 
-   最重要的一条安全设置。站点配置里必须有：
+  Nginx 中加入下面这段，并确保它位于通用的 location ~ \.php$ 之前：
 
-       location ^~ /uploads/ {
-           # 不要在这里写 fastcgi_pass
-       }
+      location ^~ /uploads/ {
+          # 这里不要写 fastcgi_pass
+      }
 
-   并且要放在通用的 location ~ .php$ 之前。
-   现成片段见 deployFIX-uploads-no-exec.conf。
-
-   验证：powershell -ExecutionPolicy Bypass -File testscheck-uploads-exec.ps1
-
-2) data 目录不能通过网址访问
-
-   程序自带 .htaccess / nginx.htaccess 会拦截，
-   建议在站点配置里再明确禁止一次。
-
-3) data 目录需要可写
-
-   PHP 进程要能写入 data（数据库、配置、日志、会话）。
+  现成片段见 deploy/FIX-uploads-no-exec.conf。
+  安装向导也会实际探测这一点，配置不对会阻止安装。
 
 
 目录说明
 --------
 
-    public          网站根目录（只有这里对公网可见）
-      index.php      首页（公开浏览）
-      setup.php      安装向导
-      admin.php      后台管理
-      uploads       图片存放处（不要执行 PHP）
-      assets        CSS / JS
+   public/         网站根目录（只有这里对公网可见）
+     index.php     首页
+     setup.php     安装向导
+     admin.php     后台管理
+     uploads/      图片目录（禁止执行脚本）
+     assets/       CSS / JS
 
-    src             程序代码（不在网站根目录内）
-    data            数据库、配置、日志、会话（不可公开访问）
-      config.sample.php   配置模板
-      config.php          ← 安装后生成，含管理员密码，切勿外传
-    docs            设计文档与审计记录
-    deploy          部署配置片段与说明
-    tests           自检与测试脚本
-    backup          命令行备份的输出目录
+   src/            程序代码
+   data/           数据库、配置、日志、会话（不可公开访问）
+     config.sample.php   配置模板
+     config.php          安装后生成，含管理员密码，切勿外传
+   docs/           设计与开发文档
+   deploy/         服务器配置模板
+   tests/          自检与测试脚本
+   backup/         命令行备份的输出目录
 
 
 日常维护
 --------
 
-备份（数据库 + 站点设置 + 原图，打包成一个 zip）：
+   备份（数据库 + 站点设置 + 原图，打成一个 zip）：
+       php data/backup.php
+   也可以登录后台，在「备份」页直接下载。
 
-    php dataackup.php
+   环境自检：
+       powershell -ExecutionPolicy Bypass -File tests/preflight.ps1 -Base http://你的地址
 
-环境自检（PHP 版本 / 扩展 / 语法 / 权限 / 敏感文件 / 磁盘空间
-         / uploads 是否可执行 PHP）：
-
-    powershell -ExecutionPolicy Bypass -File testspreflight.ps1 -Base http://你的地址
-
-功能与安全用例（需要管理员密码）：
-
-    powershell -ExecutionPolicy Bypass -File testsun-tests.ps1 -Base http://你的地址 -Password 你的密码
-
-
-环境要求
---------
-
-    PHP    8.0.2 及以上
-    扩展   pdo_sqlite、gd、fileinfo、json、zip
-    Web    Nginx / Apache / 其他均可
-    数据库 无需安装，使用 PHP 自带的 SQLite
-
-实际扩展清单用预检脚本确认最准。
+   功能与安全用例：
+       powershell -ExecutionPolicy Bypass -File tests/run-tests.ps1 -Base http://你的地址 -Password 你的密码
 
 
 常见问题
 --------
 
-Q: 打开站点 404 或提示 "No input file specified"
-A: 网站根目录没有指向 public。检查站点配置里的 root。
+   Q: 打开站点 404
+   A: 网站根目录没有指向 public/。检查服务器配置里的 root。
 
-Q: 上传后图片打不开，或后台提示"文件已丢失"
-A: uploads 目录不存在或不可写。程序会尝试自动创建，失败时需手工建目录。
+   Q: 安装向导提示目录不可写
+   A: 给 data/ 与 public/uploads/ 写入权限（Windows 下通常是给 IIS_IUSRS，
+      Linux 下是给 PHP 进程的属主）。
 
-Q: 忘记管理员密码
-A: 删除 dataconfig.php 后重新打开站点，会回到安装向导。
-   注意：这会重置所有站点设置，但不会影响已上传的图片和数据库。
+   Q: 提示 uploads 会执行 PHP
+   A: 这是最需要修的一项。按上面「最重要的一条安全设置」改服务器配置。
 
-Q: 磁盘快满了
-A: 登录后台 → 备份页 → 维护区可看到原图占用与磁盘剩余。
-   磁盘写满会导致上传失败，严重时 PHP 会话也写不进去，可能表现为全站异常。
+   Q: 忘记管理员密码
+   A: 删除 data/config.php 后重新打开站点，会回到安装向导。
+      这不影响已上传的图片和数据库。
 
-Q: 想改每页显示数量 / 缩略图尺寸
-A: 后台 → 设置。改缩略图尺寸后可在备份页的维护区一键重建已有图片的缩略图。
+   Q: 图片里的拍摄地点会不会泄露
+   A: 不会。上传时默认移除 EXIF/GPS 等元数据（只删元数据段，画面不变）。
+      该开关可在后台「设置」中关闭。
+
 '@
 
 Set-Content -Path (Join-Path $stage "快速上手.txt") -Value $quickStart -Encoding UTF8
 
 # ------------------------------------------------------------------
-# 压缩
+# 7. 压缩
 # ------------------------------------------------------------------
+$stamp   = Get-Date -Format "yyyyMMdd-HHmmss"
+$pkgName = "elationpic-$stamp"
+if (-not (Test-Path $OutDir)) { New-Item -ItemType Directory -Path $OutDir -Force | Out-Null }
 $zipPath = Join-Path $OutDir ($pkgName + ".zip")
 if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
 
@@ -356,81 +314,65 @@ Write-Host "  正在压缩..." -ForegroundColor Gray
 
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 [System.IO.Compression.ZipFile]::CreateFromDirectory(
-    $stage,
-    $zipPath,
+    $stage, $zipPath,
     [System.IO.Compression.CompressionLevel]::Optimal,
     $false
 )
-
 Remove-Item $stage -Recurse -Force -ErrorAction SilentlyContinue
 
 # ------------------------------------------------------------------
-# 汇总
+# 8. 交付校验
 # ------------------------------------------------------------------
-$zipSize = (Get-Item $zipPath).Length
-
+# 这一步是最后一道防线：包内出现任何不该有的东西，就删除整个包。
+# 宁可没有产物，也不能发布一个泄露密码或用户图片的包。
+$bad = New-Object System.Collections.ArrayList
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $z = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
-$fileCount = $z.Entries.Count
+foreach ($e in $z.Entries) {
+    $n = $e.FullName
+
+    if ($e.Name -eq ".gitkeep") {
+        [void]$bad.Add($n + "  <- 版本控制占位文件"); continue
+    }
+    if ($n -eq "data/config.php")          { [void]$bad.Add($n + "  <- 含管理员密码哈希"); continue }
+    if ($n -eq "data/database.sqlite")     { [void]$bad.Add($n + "  <- 真实数据"); continue }
+    if ($n -like "data/logs/*" -and $e.Length -gt 0) { [void]$bad.Add($n + "  <- 运行日志"); continue }
+    if ($n -like "data/tmp/*"  -and $e.Length -gt 0) { [void]$bad.Add($n + "  <- 临时文件"); continue }
+    if ($n -like "*before-import*")        { [void]$bad.Add($n + "  <- 导入回滚点"); continue }
+    if ($n -like "public/uploads/*" -and -not $IncludeUploads) {
+        [void]$bad.Add($n + "  <- 用户图片（未指定 -IncludeUploads）"); continue
+    }
+}
+$entryCount = $z.Entries.Count
 $z.Dispose()
+
+if ($bad.Count -gt 0) {
+    Write-Host ""
+    Write-Host "  [失败] 包内出现了不该有的文件：" -ForegroundColor Red
+    foreach ($b in $bad) { Write-Host ("    " + $b) -ForegroundColor Red }
+    Write-Host "  已删除该包，避免误发布。" -ForegroundColor Red
+    Remove-Item $zipPath -Force
+    exit 1
+}
+
+# ------------------------------------------------------------------
+# 9. 汇总
+# ------------------------------------------------------------------
+$zipSize = (Get-Item $zipPath).Length
 
 Write-Host ""
 Write-Host "=== 打包完成 ===" -ForegroundColor Green
 Write-Host ("  文件   : " + $zipPath)
 Write-Host ("  大小   : " + [math]::Round($zipSize / 1KB, 1) + " KB")
-Write-Host ("  条目数 : " + $fileCount)
+Write-Host ("  条目数 : " + $entryCount)
 
-Write-Host ""
-Write-Host "  已排除的内容：" -ForegroundColor Yellow
-foreach ($s in $skipped) { Write-Host $s }
+Write-Host "  已排除：" -ForegroundColor Yellow
+foreach ($s in $script:skipped) { Write-Host $s }
 
+Write-Host "  交付校验通过：包内无配置、数据库、日志、回滚点、版本控制产物" -ForegroundColor Green
 if (-not $IncludeUploads) {
-    Write-Host ""
-    Write-Host "  提示：用户图片未包含。若要把图一起打包（例如整站迁移），" -ForegroundColor Yellow
-    Write-Host "        加 -IncludeUploads 参数。" -ForegroundColor Yellow
+    Write-Host "  用户图片未包含；整站迁移请加 -IncludeUploads" -ForegroundColor Yellow
 }
-
-# ------------------------------------------------------------------
-# 交付前校验：包内不得出现机密或过程产物
-# ------------------------------------------------------------------
 Write-Host ""
-Write-Host "  校验包内不含机密..." -ForegroundColor Gray
-
-$bad = New-Object System.Collections.ArrayList
-$z = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
-foreach ($e in $z.Entries) {
-    $n = $e.FullName
-
-    $isSecret =
-        ($n -eq "data/config.php") -or
-        ($n -eq "data/database.sqlite") -or
-        ($n -like "data/logs/*") -or
-        ($n -like "data/tmp/*") -or
-        ($n -like "*before-import*") -or
-        ($n -like "*.before-import.*")
-
-    # 用户图片：只有明确要求时才允许出现在包里。
-    # 这一条是补上的 —— 早期版本漏检，导致默认打包把使用者的图一起发出去。
-    $isUserImage = $false
-    if ($n -like "public/uploads/*" -and $n -notlike "*.gitkeep") {
-        $isUserImage = $true
-    }
-
-    # 空目录占位（.gitkeep）不算内容
-    if ($isSecret -and $e.Length -gt 0 -and $n -notlike "*.gitkeep") {
-        [void]$bad.Add($n)
-    } elseif ($isUserImage -and -not $IncludeUploads) {
-        [void]$bad.Add($n + "  <- 用户图片，未指定 -IncludeUploads")
-    }
-}
-$z.Dispose()
-
-if ($bad.Count -gt 0) {
-    Write-Host "  [失败] 包内发现了不该有的文件：" -ForegroundColor Red
-    foreach ($b in $bad) { Write-Host ("    " + $b) -ForegroundColor Red }
-    Write-Host "  已删除该包，避免误分发。" -ForegroundColor Red
-    Remove-Item $zipPath -Force
-    exit 1
-}
-Write-Host "  [通过] 未发现配置、数据库、日志或回滚点" -ForegroundColor Green
+Write-Host "  解压后把网站根目录指向 public/ 即可安装。"
 Write-Host ""
