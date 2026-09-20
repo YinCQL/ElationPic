@@ -11,7 +11,7 @@ declare(strict_types=1);
 // 唯一版本来源。发布新版本时改这里一处即可：
 // 底栏展示、将来的升级提示都从这里取。
 // 与 GitHub Release 的 tag 保持一致（不带 v 前缀）。
-define('APP_VERSION', '1.0.1');
+define('APP_VERSION', '1.0.2');
 
 // ---------- 路径常量（§5.2 冻结契约） ----------
 define('APP_ROOT',   dirname(__DIR__));
