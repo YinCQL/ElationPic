@@ -160,6 +160,54 @@ a:hover { color: var(--accent); }
 }
 .field input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(47,111,235,.12); }
 
+/* ---------- 勾选型字段 ----------
+   .field input 是 width:100%，对文本框正确，但套到复选框上会让它占满整行、
+   把说明文字挤到下一行 —— 看起来像排版坏了。
+   这里用 flex 让方框与文字同行，方框保持原始尺寸。
+   规则必须写在 .field input 之后才能覆盖 width。 */
+.field-check {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin: 16px 0;
+    cursor: pointer;
+}
+.field-check > input[type="checkbox"] {
+    width: 17px;
+    height: 17px;
+    flex: none;                 /* 不被文字挤压 */
+    margin: 2px 0 0;            /* 与首行文字视觉对齐 */
+    padding: 0;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+/* 文字部分占满剩余空间，并允许换行 */
+.field-check > span {
+    display: block;
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+    font-size: 14px;
+    color: var(--text);
+}
+/* 说明文字跟在同一列的下面 */
+.field-check > .hint {
+    flex-basis: 100%;
+    margin: 6px 0 0;
+    font-size: 12.5px;
+    color: var(--muted);
+    line-height: 1.6;
+}
+/* 勾选框 + 标题 + 说明整体作为一个块，文字统一缩进 */
+.field-check {
+    flex-wrap: wrap;
+    row-gap: 0;
+}
+/* 说明文字要与标题文字左对齐，而不是从方框下面开始 */
+.field-check > .hint {
+    margin-left: 27px;          /* 17px 方框 + 10px 间距 */
+}
+
 .alert {
     background: #fdf2f0;
     border: 1px solid #f0c8c2;
