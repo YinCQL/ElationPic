@@ -63,7 +63,10 @@ img/                          <- 项目根（非 Web 根）
 │   ├── backup_delete.php     删除备份文件（JSON，路径安全）
 │   ├── error.php             统一错误页
 │   ├── assets/
-│   │   ├── style.css         全站样式
+│   │   ├── css/              样式（按层拆分，见下）
+│   │   │   ├── 1-base.css      基础：变量、排版、组件
+│   │   │   ├── 2-polish.css    视觉规格第二版（覆盖层）
+│   │   │   └── 3-theme.css     语义色与深色模式
 │   │   └── app.js            少量原生 JS
 │   └── uploads/              ★ 公开图片目录，Nginx 直接返回
 │       └── thumbs/           GD 缩略图

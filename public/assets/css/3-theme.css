@@ -1,0 +1,423 @@
+/* ---------- 语义色（供浅色/深色两套主题共用） ----------
+   把此前写死的几种"提示框底色/边框"抽成变量，
+   这样深色模式只需换变量值，不必逐条覆盖规则。 */
+:root {
+    --notice-bg: #f6f9ff;
+    --notice-border: #d6e4ff;
+    --warn-bg: #fff8ec;
+    --warn-border: #f2ddb8;
+    --ok-bg: #f0f9f2;
+    --ok-border: #bfe3c8;
+    --ok-text: #1e6b34;
+    --danger-bg: #fdecea;
+    --danger-border: #f3c2bd;
+    --danger-text: #7c2d22;
+    --danger-soft: #e6c4bf;
+    --media-bg: #eef1f5;
+    --hover-bg: #fbfcfd;
+    --hover-border: #b9c2d0;
+    /* 选中/激活态的淡蓝底（批量操作条、拖入高亮） */
+    --tint-bg: #eef3fe;
+    --tint-border: #d3e0fb;
+    --tint-strong-bg: #e6efff;
+    --tint-strong-border: #bcd4fb;
+    --drag-bg: #f4f8ff;
+    /* 表单控件底色（浏览器默认是白底，深色下必须显式覆盖） */
+    --input-bg: #ffffff;
+}
+
+
+/* ==========================================================================
+   深色模式
+   规则：只在此处**重新定义变量**，其余样式一律不动 ——
+   因为整套样式表已经是基于变量的，换掉变量即可整体适配。
+   这是选择"用变量写样式"的直接收益：深色模式只需这几十行。
+   ========================================================================== */
+/* 由 assets/theme.js 在首次绘制前写入 <html data-theme="light|dark">。
+   脚本会把"跟随系统"解析成明确的 light/dark —— 因此这里**只需按属性写一份**，
+   不必再和媒体查询各维护一遍深色变量。 */
+html[data-theme="dark"] {
+    --bg: #14161a;
+    --surface: #1c1f24;
+    --border: #2b3037;
+    --border-strong: #3a414a;
+    --text: #e8eaed;
+    --text-soft: #b6bcc6;
+    --muted: #8b939f;
+    /* 深色背景上提高主色亮度，保证对比度 */
+    --accent: #6ea0ff;
+    --accent-hover: #8bb4ff;
+    --accent-soft: #1e2a40;
+    --danger: #ff8a7a;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
+    --shadow: 0 1px 3px rgba(0, 0, 0, .5), 0 1px 2px rgba(0, 0, 0, .3);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, .55);
+
+    --notice-bg: #182338;
+    --notice-border: #2b3f60;
+    --warn-bg: #2b2416;
+    --warn-border: #4d4022;
+    --ok-bg: #16281c;
+    --ok-border: #2c4a33;
+    --ok-text: #7fd39a;
+    --danger-bg: #2e1a17;
+    --danger-border: #573029;
+    --danger-text: #ff9a8a;
+    --danger-soft: #5a322b;
+    --media-bg: #23272e;
+    --hover-bg: #232830;
+    --hover-border: #454d58;
+    --tint-bg: #1c2740;
+    --tint-border: #2c3f60;
+    --tint-strong-bg: #22304f;
+    --tint-strong-border: #36507a;
+    --drag-bg: #1b2740;
+    --input-bg: #171a1f;
+
+    /* 让浏览器原生控件（滚动条、表单）也跟着变 */
+    color-scheme: dark;
+}
+
+/* 顶部栏的半透明底需要跟着变，否则深色下仍是白雾 */
+html[data-theme="dark"] .site-header { background: rgba(28, 31, 36, .88); }
+
+/* 拖拽区的高亮底色 */
+html[data-theme="dark"] .dropzone.is-dragover { background: #1b2740; }
+
+/* 批量操作条的选中态 */
+html[data-theme="dark"] .bulkbar.has-selection { background: #1b2740; border-color: #2f4666; }
+
+/* 卡片勾选框的白色底在深色下太刺眼 */
+html[data-theme="dark"] .card-pick {
+    background: rgba(28, 31, 36, .92);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .5);
+}
+
+/* 滚动条（WebKit）跟随主题，避免深色页面出现亮色滚动条 */
+html[data-theme="dark"] ::-webkit-scrollbar { width: 12px; height: 12px; }
+html[data-theme="dark"] ::-webkit-scrollbar-track { background: var(--bg); }
+html[data-theme="dark"] ::-webkit-scrollbar-thumb {
+    background: #3a414a;
+    border-radius: 6px;
+    border: 3px solid var(--bg);
+}
+html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: #4a525d; }
+
+/* 主题切换按钮 */
+.theme-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    background: var(--surface);
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 15px;
+    line-height: 1;
+    transition: background .14s ease, border-color .14s ease, color .14s ease;
+}
+.theme-btn:hover { background: var(--hover-bg); border-color: var(--hover-border); color: var(--text); }
+.theme-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- 表单控件必须显式声明底色 ----------
+   浏览器对 input/select/textarea 有默认的白底，**不会**跟随我们定义的变量。
+   若不显式覆盖，深色模式下这几个控件会是一片刺眼的白色。
+   （textarea 目前未使用，一并声明以免将来加了又忘。） */
+input[type="text"],
+input[type="password"],
+input[type="number"],
+input[type="search"],
+input[type="email"],
+input[type="url"],
+input[type="file"],
+select,
+textarea {
+    color: var(--text);
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+}
+
+/* 文件选择控件的按钮部分也跟随主题（WebKit） */
+input[type="file"]::file-selector-button {
+    font: inherit;
+    font-size: 13px;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 5px 10px;
+    margin-right: 10px;
+    cursor: pointer;
+}
+input[type="file"]::file-selector-button:hover { background: var(--hover-bg); }
+
+/* 占位符在深色下对比度足够 */
+::placeholder { color: var(--muted); opacity: 1; }
+
+/* ---------- 回到顶部按钮 ----------
+   位置：右下角，但与底部的错误横幅错开 —— 横幅出现时按钮上移，
+   否则会被横幅盖住。
+   显隐由 JS 控制（滚动超过一屏才出现），这里只负责外观与过渡。 */
+.to-top {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 50;                 /* 低于错误横幅(9999)，高于内容 */
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 19px;
+    line-height: 1;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 50%;          /* 圆形 */
+    box-shadow: var(--shadow-lg);
+    cursor: pointer;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(8px);
+    transition: opacity .18s ease, transform .18s ease,
+                visibility .18s ease, background .14s ease,
+                border-color .14s ease, color .14s ease;
+}
+/* 显示态：由 JS 添加这个 class */
+.to-top.is-shown {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+.to-top:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+.to-top:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+/* 错误横幅出现时把按钮顶上去，避免遮挡 */
+body.has-errbar .to-top { bottom: 84px; }
+
+@media (max-width: 720px) {
+    .to-top { right: 14px; bottom: 14px; width: 40px; height: 40px; font-size: 17px; }
+    body.has-errbar .to-top { bottom: 78px; }
+}
+
+/* 尊重"减少动效"偏好：不做位移与平滑滚动 */
+@media (prefers-reduced-motion: reduce) {
+    .to-top { transform: none; }
+}
+
+/* ---------- 维护区的小元素 ---------- */
+.maint-sep {
+    border: 0;
+    border-top: 1px solid var(--border);
+    margin: 22px 0 4px;
+}
+.maint-list {
+    margin: 8px 0 12px;
+    padding-left: 20px;
+    font-size: 13.5px;
+    line-height: 1.7;
+}
+.maint-list li { margin: 3px 0; }
+#consistency-detail {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    margin: 12px 0;
+    font-size: 13.5px;
+    line-height: 1.7;
+}
+#consistency-detail code {
+    font-size: 12.5px;
+    word-break: break-all;
+}
+
+/* ---------- 首页排序条 ---------- */
+.hero-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+.sortbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13.5px;
+}
+.sortbar-label { color: var(--muted); }
+.sortbar select {
+    padding: 6px 10px;
+    font: inherit;
+    font-size: 13.5px;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+}
+.sortbar select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+@media (max-width: 720px) {
+    .hero-head { align-items: stretch; }
+    .sortbar { width: 100%; }
+    .sortbar select { flex: 1; }
+}
+
+/* ---------- 卡片上的问题标记 ----------
+   让"这张图有问题"在列表里直接可见，而不是只在自检报告里列一个文件名，
+   用户还得自己回来找是哪张。 */
+.card.has-issue { border-color: var(--warn-border); }
+.card-flag {
+    margin: 0 0 7px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    line-height: 1.45;
+}
+.card-flag-bad {
+    background: var(--danger-bg);
+    border: 1px solid var(--danger-border);
+    color: var(--danger-text);
+}
+.card-flag-dupe {
+    background: var(--warn-bg);
+    border: 1px solid var(--warn-border);
+    color: var(--text-soft);
+}
+
+/* ---------- 存储概况 ---------- */
+.storage { margin: 4px 0 8px; }
+.storage-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 5px 0;
+    font-size: 13.5px;
+}
+.storage-label { color: var(--muted); flex: none; }
+.storage-value { text-align: right; font-variant-numeric: tabular-nums; }
+.storage-bar { margin: 8px 0 4px; }
+.storage-bar .progress-bar.is-low { background: #d98324; }
+.storage-bar .progress-bar.is-critical { background: var(--danger); }
+.storage-note { margin: 0 0 10px; font-size: 12.5px; }
+
+/* ---------- 后台两栏布局 ----------
+   侧边栏固定宽度，内容区占据剩余空间。
+   窄屏下改为顶部横向滚动条（见下方媒体查询），与站内导航的处理一致。 */
+.admin-shell {
+    display: flex;
+    align-items: flex-start;
+    gap: 22px;
+    padding-top: 22px;
+    padding-bottom: 22px;
+}
+.admin-main {
+    flex: 1 1 auto;
+    min-width: 0;              /* 允许收缩，否则宽表格会把侧边栏挤出去 */
+}
+
+.sidebar {
+    flex: none;
+    width: 188px;
+    position: sticky;
+    top: 84px;                 /* 顶栏高度 + 间距 */
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+.sidebar-title {
+    display: block;
+    padding: 0 10px;
+    margin-bottom: 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: .04em;
+    color: var(--muted);
+    text-transform: uppercase;
+}
+.sidebar-link {
+    display: block;
+    padding: 8px 10px;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: background .14s ease, color .14s ease;
+}
+.sidebar-link:hover { background: var(--bg); }
+.sidebar-label {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+}
+.sidebar-desc {
+    display: block;
+    margin-top: 1px;
+    font-size: 11.5px;
+    color: var(--muted);
+    line-height: 1.4;
+}
+.sidebar-link.is-active { background: var(--accent-soft); }
+.sidebar-link.is-active .sidebar-label { color: var(--accent); font-weight: 600; }
+.sidebar-link.is-active .sidebar-desc { color: var(--accent); opacity: .8; }
+
+/* 侧边栏在窄屏折叠为顶部横向滚动条 */
+@media (max-width: 860px) {
+    .admin-shell {
+        flex-direction: column;
+        gap: 0;
+        padding-top: 14px;
+        /* 必须改回 stretch：基础规则里的 align-items: flex-start 是为横向布局
+           准备的（让侧边栏不被拉伸）。换成纵向后，它会让主内容区**只按内容
+           宽度收缩**，实测窄屏下主区只剩 88px。 */
+        align-items: stretch;
+    }
+    .admin-main { width: 100%; }
+    .sidebar {
+        position: static;
+        width: 100%;
+        flex-direction: row;
+        gap: 4px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-bottom: 10px;
+        margin-bottom: 6px;
+        border-bottom: 1px solid var(--border);
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+    }
+    .sidebar::-webkit-scrollbar { display: none; }
+    .sidebar-group {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        flex: none;
+    }
+    .sidebar-title { display: none; }   /* 横排时分组标题只会占地方 */
+    .sidebar-link {
+        flex: none;
+        white-space: nowrap;
+        padding: 7px 12px;
+        border: 1px solid var(--border);
+    }
+    .sidebar-desc { display: none; }    /* 横排时只留主标题 */
+    .sidebar-link.is-active { border-color: var(--accent); }
+}
+
+
+/* 设置页底部的跳转提示 */
+.settings-note { margin-top: 18px; font-size: 13px; }

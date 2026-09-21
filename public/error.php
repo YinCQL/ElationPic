@@ -75,7 +75,14 @@ if ($base === '.' || $base === '/') {
 $esc = static function (string $s): string {
     return htmlspecialchars($s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 };
-$cssHref  = $esc($base . '/assets/style.css');
+// 样式按层拆成多个文件。这里**不调用 asset_url()** —— 本页要在应用
+// 出错时仍能渲染，因此刻意不依赖任何助手函数，路径与版本号手写。
+// 不带版本参数是可接受的：错误页本身已发 Cache-Control: no-store。
+$cssHrefs = [
+    $esc($base . '/assets/css/1-base.css'),
+    $esc($base . '/assets/css/2-polish.css'),
+    $esc($base . '/assets/css/3-theme.css'),
+];
 $homeHref = $esc($base . '/');
 $safeTitle = $esc($title);
 $safeMessage = $esc($message);
@@ -92,7 +99,9 @@ header('Referrer-Policy: strict-origin-when-cross-origin');
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title><?= $safeTitle ?></title>
-<link rel="stylesheet" href="<?= $cssHref ?>">
+<?php foreach ($cssHrefs as $__css): ?>
+<link rel="stylesheet" href="<?= $__css ?>">
+<?php endforeach; ?>
 </head>
 <body>
 <main class="wrap">

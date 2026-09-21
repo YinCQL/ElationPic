@@ -199,6 +199,7 @@ elationpic/
 │   ├── check_consistency.php  一致性自检
 │   ├── error.php              错误页
 │   ├── assets/                CSS / JS
+│   │   └── css/               样式分三层：base / polish / theme
 │   └── uploads/               图片目录（禁止执行脚本）
 │
 ├── src/                       程序代码（不在网站根目录内）

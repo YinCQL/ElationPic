@@ -353,6 +353,38 @@ function asset_url(string $path): string
     return url('/' . $rel) . $ver;
 }
 
+/**
+ * 输出全部样式表的 <link>，每个文件独立带版本号。
+ *
+ * 为什么不合并成单个 style.css 再用 @import：
+ *   @import 里的 URL **无法带版本参数** —— CSS 是静态文件，没有 PHP 参与。
+ *   而 nginx 给 .css 发了 7 天缓存，于是改了某个分片后浏览器最长 7 天
+ *   仍在用旧样式，且没有任何提示。这正是本项目在 JS 上踩过的坑
+ *   （资源无版本号 -> 用户拿到旧脚本 -> 行为对不上代码）。
+ *
+ * 拆成多个 <link> 的好处：
+ *   - 每个文件用自己的 mtime 做版本，改哪个哪个失效，最精确；
+ *   - 去掉 @import 的串行下载（@import 必须等入口下载完才开始）；
+ *   - 不再需要 style.css 这个"入口壳"，少一个容易忘记同步的中间层。
+ *
+ * 顺序即层叠顺序，不可调换：base -> polish -> theme。
+ */
+function stylesheet_links(): string
+{
+    // 顺序是语义的一部分：后面的层覆盖前面的层。
+    $files = [
+        'assets/css/1-base.css',
+        'assets/css/2-polish.css',
+        'assets/css/3-theme.css',
+    ];
+
+    $out = '';
+    foreach ($files as $rel) {
+        $out .= '<link rel="stylesheet" href="' . e(asset_url('/' . $rel)) . '">' . "\n";
+    }
+    return $out;
+}
+
 /** 生成服务端随机文件名。用户输入不参与。 */
 function random_filename(string $ext): string
 {

@@ -232,6 +232,22 @@ function Resolve-SiteUrl($base, $origin, $href) {
     return $base + "/" + $href
 }
 
+# Fetch every CSS layer and concatenate them.
+#
+# The stylesheet used to be one file; it is now three layers whose cascade order
+# matters. An assertion about a rule must therefore look at all of them --
+# checking one would pass or fail depending on which layer happens to hold the
+# rule, and would quietly stop testing anything the moment it moved.
+function Get-AllCss($Base) {
+    $parts = @("/assets/css/1-base.css", "/assets/css/2-polish.css", "/assets/css/3-theme.css")
+    $all = ""
+    foreach ($p in $parts) {
+        $r = Invoke-Req -Url ($Base + $p)
+        $all += [string]$r.Body
+    }
+    return $all
+}
+
 Write-Host ""
 Write-Host "ElationPic verification" -ForegroundColor White
 Write-Host ("Target: " + $Base + "   Scenario: " + $Scenario)
@@ -270,13 +286,27 @@ if ($Scenario -in @("all","access")) {
     $cfgReq = Invoke-Req -Url ($Base + "/../data/config.php")
     $cfgLeak = ($cfgReq.Body -match "admin_password_hash|password_hash\(")
     Check "A10 config.php not reachable" ((-not $cfgLeak) -and $cfgReq.Status -ne 200) ("status=" + $cfgReq.Status)
-    # Optional cache-busting query allowed (style.css?v=...)
-    if ($root.Body -match '<link[^>]+href="([^"]*style\.css(?:\?[^"]*)?)"') {
-        $cssHref = $Matches[1]
-        $cssUrl = Resolve-SiteUrl $Base $origin $cssHref
-        $css = Invoke-Req -Url $cssUrl
-        Check "A6 CSS loads (base_path correct)" ($css.Status -eq 200) ("href=" + $cssHref + " status=" + $css.Status)
-    } else { Fail "A6 CSS loads (base_path correct)" "homepage did not reference style.css" }
+    # Styles are split into three layer files, each independently versioned.
+    # All of them must resolve: a missing layer would silently drop styling
+    # rather than break the page, which is the kind of failure that ships.
+    $cssHrefs = [regex]::Matches([string]$root.Body, '<link[^>]+href="([^"]*\.css(?:\?[^"]*)?)"') |
+                ForEach-Object { $_.Groups[1].Value }
+    if ($cssHrefs.Count -ge 3) {
+        $cssBad = @()
+        foreach ($h in $cssHrefs) {
+            $u = Resolve-SiteUrl $Base $origin $h
+            $c = Invoke-Req -Url $u
+            if ($c.Status -ne 200) { $cssBad += ($h + " -> " + $c.Status) }
+        }
+        Check "A6 all stylesheets load (base_path correct)" ($cssBad.Count -eq 0) ("count=" + $cssHrefs.Count + " bad=" + ($cssBad -join ", "))
+        # Cascade order is semantic: later layers override earlier ones.
+        $oBase = [string]$root.Body -match "1-base\.css"
+        $oPol  = [string]$root.Body -match "2-polish\.css"
+        $oThm  = [string]$root.Body -match "3-theme\.css"
+        Check "A6b stylesheets load in cascade order" ($oBase -and $oPol -and $oThm) ("base=" + $oBase + " polish=" + $oPol + " theme=" + $oThm)
+    } else {
+        Fail "A6 all stylesheets load (base_path correct)" ("homepage referenced " + $cssHrefs.Count + " stylesheet(s), expected 3")
+    }
     if ($root.Body -match '<script[^>]+src="([^"]*app\.js)"') {
         $jsHref = $Matches[1]
         $jsUrl = Resolve-SiteUrl $Base $origin $jsHref
@@ -289,8 +319,10 @@ if ($Scenario -in @("all","access")) {
     # A11: static assets must carry a cache-busting version.
     # Without it browsers may reuse a stale app.js, which shows up as
     # "the buttons do nothing" even though the code is correct.
-    $cbOk = ($root.Body -match 'style\.css\?v=\d+')
-    Check "A11 CSS URL carries a version stamp" $cbOk ""
+    # Every layer must be versioned, not just one -- an unversioned layer would
+    # be cached by nginx for 7 days and silently ignore later edits.
+    $cbStamps = [regex]::Matches([string]$root.Body, '\.css\?v=\d+')
+    Check "A11 every CSS URL carries a version stamp" ($cbStamps.Count -ge 3) ("stamped=" + $cbStamps.Count)
     $cbJs = ($root.Body -match 'app\.js\?v=\d+')
     Check "A11b JS URL carries a version stamp" $cbJs ""
     # A12: every page must load app.js.
@@ -933,7 +965,7 @@ if ($Scenario -in @("all","backup")) {
             # The dark palette is keyed off html[data-theme="dark"] (set by
             # theme.js) so that a manual toggle can drive it; the "system"
             # preference is resolved in JS instead of a media query.
-            $dcss = Invoke-Req -Url ($Base + "/assets/style.css")
+            $dcss = @{ Body = (Get-AllCss $Base) }
             $hasDarkVars = ($dcss.Body -match 'data-theme="dark"')
             Check "H11 dark mode styles are shipped" $hasDarkVars ""
             $themeSrc = Invoke-Req -Url ($Base + "/assets/theme.js")
@@ -1055,8 +1087,8 @@ if ($Scenario -in @("all","backup")) {
             # The consistency report alone only printed filenames, so the user
             # still had to hunt for the card. Now the card carries a badge.
             $root2 = Invoke-Req -Url ($Base + "/")
-            Check "H19 card badges are shipped in CSS" ((Invoke-Req -Url ($Base + "/assets/style.css")).Body -match "card-flag") ""
-            Check "H19b cards can opt into an issue style" ((Invoke-Req -Url ($Base + "/assets/style.css")).Body -match "has-issue") ""
+            Check "H19 card badges are shipped in CSS" ((Get-AllCss $Base) -match "card-flag") ""
+            Check "H19b cards can opt into an issue style" ((Get-AllCss $Base) -match "has-issue") ""
 
             # H20: broken records can be cleaned up (records whose file is gone).
             $cons = Invoke-Req -Url ($Base + "/check_consistency.php")
@@ -1091,7 +1123,7 @@ if ($Scenario -in @("all","backup")) {
             # as a fallback against horizontal overflow -- that makes html a
             # scroll container and silently BREAKS position: sticky, so the
             # header scrolled away. Verified: scrolling 600px moved it to -600.
-            $dcss3 = Invoke-Req -Url ($Base + "/assets/style.css")
+            $dcss3 = @{ Body = (Get-AllCss $Base) }
             $noBodyOverflow = -not ($dcss3.Body -match "html,\s*body\s*\{[^}]*overflow-x\s*:\s*hidden")
             Check "H15 sticky header is not broken by body overflow" $noBodyOverflow ""
 
@@ -1104,7 +1136,7 @@ if ($Scenario -in @("all","backup")) {
             # Regression guard: form controls and tinted bars previously kept
             # their light backgrounds in dark mode because browsers default
             # input backgrounds to white and some rules were hardcoded.
-            $dcss2 = Invoke-Req -Url ($Base + "/assets/style.css")
+            $dcss2 = @{ Body = (Get-AllCss $Base) }
             $cov = ($dcss2.Body -match "--input-bg") -and
                    ($dcss2.Body -match "--tint-bg") -and
                    ($dcss2.Body -match "input\[type=.file.\]")
@@ -1115,8 +1147,10 @@ if ($Scenario -in @("all","backup")) {
             # It must be loaded WITHOUT defer/async, before the stylesheet,
             # otherwise the page flashes light before switching to dark.
             $head = [string]$hAd.Body
+            # "style.css" no longer exists as a single file; the first layer
+            # stands in for it now that the stylesheets are split.
             $themeFirst = ($head.IndexOf("theme.js") -ge 0) -and
-                           ($head.IndexOf("theme.js") -lt $head.IndexOf("style.css"))
+                           ($head.IndexOf("theme.js") -lt $head.IndexOf("1-base.css"))
             Check "H13b theme script loads before the stylesheet" $themeFirst ""
             Check "H13c theme toggle button is present" ($head -match "theme-toggle") ""
             # H12: the upload flow offers a copyable direct link.

@@ -26,7 +26,11 @@ if ($isAdminPage): ?>
 //   - 独立文件而非内联：CSP 为 script-src 'self'，不允许内联脚本。
 ?>
 <script src="<?= e(asset_url('/assets/theme.js')) ?>"></script>
-<link rel="stylesheet" href="<?= e(asset_url('/assets/style.css')) ?>">
+<?php
+// 样式按层拆成多个文件，每个独立带版本号。
+// 详见 helpers.php 的 stylesheet_links() —— 那里说明了为什么不用 @import。
+?>
+<?= stylesheet_links() ?>
 </head>
 <?php
 // 仅在已登录时下发 CSRF token。
