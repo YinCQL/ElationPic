@@ -31,6 +31,7 @@ $root = Split-Path -Parent $PSScriptRoot
 
 $docs = @(
     "README.md",
+    "README.en.md",
     "LICENSE",
     "docs\DESIGN.md",
     "docs\DEVELOPMENT.md",

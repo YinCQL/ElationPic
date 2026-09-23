@@ -105,7 +105,7 @@ if (Test-Path $pubSrc) {
 # 2. 顶层文件与文档
 # ------------------------------------------------------------------
 Write-Host "  收集文档..." -ForegroundColor Gray
-foreach ($f in @("README.md", "LICENSE", "CONTRIBUTING.md", ".editorconfig")) {
+foreach ($f in @("README.md", "README.en.md", "LICENSE", "CONTRIBUTING.md", ".editorconfig")) {
     Copy-ToStage $f
 }
 $docsSrc = Join-Path $Root "docs"

@@ -1,5 +1,7 @@
 # ElationPic
 
+**中文** | [English](README.en.md)
+
 > 一个简单、轻量的个人图床系统。
 
 ElationPic 是一个**单管理员、零依赖**的自托管图床。上传图片，拿到直链，
